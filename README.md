@@ -297,14 +297,24 @@ CORS(app)
 
 | 文档 | 大小 | 用途 | 读者 |
 |------|------|------|------|
-| README.md | 7 KB | 项目总览 | 所有人 |
-| **API_SPECIFICATION.md** | 15 KB | **API 接口定义（核心）** | **必读** |
+| README.md | 8 KB | 项目总览 | 所有人 |
+| **API_OVERVIEW.md** | 8 KB | **API 开发指南（渐进式）** | **必读** |
 | DATA_STRUCTURE.md | 15 KB | 数据结构规范 | 必读 |
 | BACKEND_GUIDE.md | 22 KB | 后端开发指南 | 后端开发者 |
 | FRONTEND_GUIDE.md | 26 KB | 前端开发指南 | 前端开发者 |
 | DEVELOPMENT_WORKFLOW.md | 11 KB | 开发流程与任务 | 项目管理者 |
-| GIT_WORKFLOW.md | 22 KB | Git 协作规范 | Git 初学者 |
+| GIT_WORKFLOW.md | 27 KB | Git 协作规范（中文优先） | Git 初学者 |
 | TESTING_DEBUG.md | 12 KB | 测试与调试 | 全体开发者 |
 | AI_COLLABORATION.md | 9 KB | AI 协作指南 | 参与的 AI |
 
-**总计**: 9 个文档，约 140 KB
+### 📁 API 接口文档（docs/api/）
+
+| 接口文档 | 状态 | 说明 |
+|---------|------|------|
+| docs/api/README.md | ✅ | API 开发流程和规范 |
+| docs/api/health.md | ✅ | 健康检查接口（完整示例） |
+| docs/api/metadata.md | 📝 | 系统元数据接口（待设计） |
+| docs/api/routes.md | 📝 | 线路数据接口（待设计） |
+| docs/api/passenger-flow.md | 📝 | 客流数据接口（待设计，高优先级） |
+
+**总计**: 9 个主文档 + 5 个 API 文档，约 150 KB
