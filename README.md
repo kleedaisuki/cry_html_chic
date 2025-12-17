@@ -290,3 +290,21 @@ CORS(app)
 ---
 
 **下一步**: 请阅读 `API_SPECIFICATION.md` 开始开发。
+
+---
+
+## 📚 完整文档列表
+
+| 文档 | 大小 | 用途 | 读者 |
+|------|------|------|------|
+| README.md | 7 KB | 项目总览 | 所有人 |
+| **API_SPECIFICATION.md** | 15 KB | **API 接口定义（核心）** | **必读** |
+| DATA_STRUCTURE.md | 15 KB | 数据结构规范 | 必读 |
+| BACKEND_GUIDE.md | 22 KB | 后端开发指南 | 后端开发者 |
+| FRONTEND_GUIDE.md | 26 KB | 前端开发指南 | 前端开发者 |
+| DEVELOPMENT_WORKFLOW.md | 11 KB | 开发流程与任务 | 项目管理者 |
+| GIT_WORKFLOW.md | 22 KB | Git 协作规范 | Git 初学者 |
+| TESTING_DEBUG.md | 12 KB | 测试与调试 | 全体开发者 |
+| AI_COLLABORATION.md | 9 KB | AI 协作指南 | 参与的 AI |
+
+**总计**: 9 个文档，约 140 KB
