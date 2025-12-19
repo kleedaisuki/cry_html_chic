@@ -64,14 +64,48 @@ cry_html_chic/
 │   │
 │   ├── README.md       # 数据清单
 │   │
-│   ├── raw/            # 原始数据集
-│   │   └── ...
+│   ├── raw/            # 原始数据
+│   │   └── <timestamp>-<config_name>-<hash>/
+│   │          ├── meta.json # 元数据 
+│   │          └── ...
 │   │
 │   └── preprocessed/   # 转换为`*.js`的数据
-│       └── ...
+│       └── <timestamp>-<config_name>-<hash>/
+│              ├── meta.json # 元数据 
+│              └── ...[.]js
 │
-├── backend/            # 后端代码（Python）
-│   └── ...
+├── configs/ 
+│   └── ingest/                 # CLI 根据 name 自动查找 config               
+│       └── <config_name>.json                
+│
+├── backend/
+│   │
+│   └── ingest/                        # 离线采集 + 产物生成（唯一系统）
+│       ├── README.md                  # 后端用法：如何抓取/构建数据产物
+│       ├── __init__.py
+│       │
+│       ├── cli/ 
+│       │   ├── pipeline.py             # 编排解析逻辑                           
+│       │   └── main.py                 # CLI 入口：python -m ingest ...
+│       │
+│       ├── sources/
+│       │   ├── interface.py            # 算子接口，通过继承定义新的算子       
+│       │   ├── data_gov_sg.py          # HTTP 获取：data.gov.sg         
+│       │   └── datamall.py             # HTTP 获取：datamall
+│       │
+│       ├── cache/
+│       │   ├── api.py                    # 统一向外暴露    
+│       │   ├── raw.py                    # 缓存网络 IO 获取的数据       
+│       │   └── preprocessed.py           # 缓存成品数据
+│       │
+│       ├── transform/
+│       │   ├── interface.py              # 算子接口，通过继承定义新的算子       
+│       │   └── ...
+│       │   
+│       └──  utils/
+│           ├── registry.py             # 注册表
+│           ├── logger.py               # 日志，使用 logging       
+│           └── configs.py              # 读取配置  
 │
 └── frontend/           # 前端代码
     ├── index.html      # 直接由此启动
@@ -107,3 +141,31 @@ cry_html_chic/
 前端按照 web 安全模型不访问本地文件，使用 `data/preprocessed` 中的 JS 常量提供的数据。  
 
 Python 后端将各式各样的数据统一到若干 JS 文件中以 JSON 呈现，并在 `data/README.md` 中说明。
+
+---
+
+ingest 为了不烂，对于使用基类统一接口的部分，两条硬约束：
+
+A1) 继承只做“接口”，不做“框架”
+
+基类只定义抽象方法 + 最小共享工具
+
+禁止在基类里写复杂控制流（否则未来 debug 会痛）
+
+A2) 注册表只负责“名字→类”，不负责“对象生命周期”
+
+registry 存的是 {"datamall": DataMallSource, ...}
+
+pipeline 在运行时用 config 实例化对象
+
+不要在 registry 里塞已经构造好的单例（否则 state 泄漏）
+
+为了保持模块边界清晰，cli/pipeline.py 只能做三件事：
+
+load config（通过 utils/configs.py）
+
+从 registry 取类并实例化
+
+调用统一接口串起来（source→cache→transform→cache）
+
+禁止它直接处理数据内容（不 parse、不 transform 具体字段）。
