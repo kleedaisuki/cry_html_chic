@@ -94,7 +94,7 @@ cry_html_chic/
 │       │   └── datamall.py             # HTTP 获取：datamall
 │       │
 │       ├── cache/
-│       │   ├── api.py                    # 统一向外暴露    
+│       │   ├── interface.py              # 统一向外暴露    
 │       │   ├── raw.py                    # 缓存网络 IO 获取的数据       
 │       │   └── preprocessed.py           # 缓存成品数据
 │       │
@@ -169,3 +169,5 @@ load config（通过 utils/configs.py）
 调用统一接口串起来（source→cache→transform→cache）
 
 禁止它直接处理数据内容（不 parse、不 transform 具体字段）。
+
+如有配置需求使用 dataclass 独立出来，后续由 utils.configs.py 统一处理解耦
