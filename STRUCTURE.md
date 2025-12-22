@@ -84,9 +84,11 @@ cry_html_chic/
 │       ├── README.md                  # 后端用法：如何抓取/构建数据产物
 │       ├── __init__.py
 │       │
+│       ├── wiring.py                   # 声明全局注册表
+│       │
 │       ├── cli/ 
-│       │   ├── pipeline.py             # 编排解析逻辑                           
-│       │   └── main.py                 # CLI 入口：python -m ingest ...
+│       │   ├── pipeline.py             # 定义状态机和 runtime                           
+│       │   └── main.py                 # CLI 入口：ingest ...，解析参数
 │       │
 │       ├── sources/
 │       │   ├── interface.py            # 算子接口，通过继承定义新的算子       
@@ -99,8 +101,14 @@ cry_html_chic/
 │       │   └── preprocessed.py           # 缓存成品数据
 │       │
 │       ├── transform/
-│       │   ├── interface.py              # 算子接口，通过继承定义新的算子       
-│       │   └── ...
+│       │   ├── interface.py                # 算子接口，通过继承定义新的算子
+│       │   ├── transformer.py              # 管理 raw -> IR (Python builtin) -> preprocessed
+│       │   ├── front/                      # operators for raw -> IR                
+│       │   │   └── ... 
+│       │   ├── optimizer/                  # operators for cleaning 
+│       │   │   └── plain_optimizer.py      # 什么都不做，单纯传递 IR 的优化器       
+│       │   └── output/                     # operators for IR -> preprocessed
+│       │       └── ... 
 │       │   
 │       └──  utils/
 │           ├── registry.py             # 注册表
