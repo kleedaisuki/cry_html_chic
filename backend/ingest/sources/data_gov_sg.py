@@ -21,6 +21,7 @@ import random
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -647,7 +648,6 @@ class DataGovSgRealtimeSource:
         yield _build_artifact(
             source_name=self.name(),
             cache_path=cache_path,
-            payload=payload,
             content_type=content_type,
             encoding="utf-8",
             meta=meta,
@@ -796,7 +796,6 @@ class DataGovSgDatastoreSearchSource:
             yield _build_artifact(
                 source_name=self.name(),
                 cache_path=cache_path,
-                payload=payload,
                 content_type=content_type,
                 encoding="utf-8",
                 meta=meta,
@@ -931,7 +930,6 @@ class DataGovSgDownloadSource:
             yield _build_artifact(
                 source_name=self.name(),
                 cache_path=cache_path,
-                payload=payload,
                 content_type=content_type,
                 encoding="binary",
                 meta=meta,
@@ -981,7 +979,6 @@ class DataGovSgDownloadSource:
         yield _build_artifact(
             source_name=self.name(),
             cache_path=cache_path_start,
-            payload=s_payload,
             content_type=s_headers.get("Content-Type", "application/json"),
             encoding="utf-8",
             meta=meta_start,
@@ -1039,7 +1036,6 @@ class DataGovSgDownloadSource:
                     job_id,
                     f"poll_{int(time.time())}.json",
                 ),
-                payload=p_payload,
                 content_type=p_headers.get("Content-Type", "application/json"),
                 encoding="utf-8",
                 meta=meta_poll,
@@ -1089,7 +1085,6 @@ class DataGovSgDownloadSource:
         yield _build_artifact(
             source_name=self.name(),
             cache_path=cache_path_dl,
-            payload=d_payload,
             content_type=content_type,
             encoding="binary",
             meta=meta_dl,
@@ -1190,7 +1185,6 @@ class DataGovSgCatalogSource:
         yield _build_artifact(
             source_name=self.name(),
             cache_path=cache_path,
-            payload=payload,
             content_type=content_type,
             encoding="utf-8",
             meta=meta,

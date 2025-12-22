@@ -295,14 +295,59 @@ class DataMallSource(DataSource):
     # DataSource identity / DataSource 标识
     # --------------------------------------------------------
 
-    @property
-    def name(self) -> str:
+    @classmethod
+    def name(cls) -> str:
         """
         /**
-         * @brief 数据源名 / Source name.
+         * @brief 数据源稳定名称（registry key）/ Stable source name (registry key).
          */
         """
         return "datamall"
+
+    @classmethod
+    def describe(cls) -> Dict[str, str]:
+        """
+        /**
+         * @brief 数据源静态描述信息 / Static description for provenance.
+         */
+        """
+        return {
+            "source": "datamall",
+            "provider": "Land Transport Authority (LTA), Singapore",
+            "api": "LTA DataMall",
+            "base_url": cls.DEFAULT_BASE_URL,
+            "transport_modes": "bus, mrt, lrt",
+            "data_type": "public transport operational data",
+        }
+
+    def validate(self, config: Mapping[str, Any]) -> None:
+        """
+        /**
+         * @brief 校验 DataMall Source 配置 / Validate DataMall source config.
+         *
+         * @param config
+         *        ingest 配置对象 / Ingest config mapping.
+         *
+         * @throws ValueError
+         *         若配置非法 / If config is invalid.
+         */
+        """
+        if not isinstance(config, Mapping):
+            raise ValueError("config must be a mapping")
+
+        account_key = config.get("account_key")
+        if not isinstance(account_key, str) or not account_key.strip():
+            raise ValueError("config['account_key'] must be a non-empty string")
+
+        dataset = config.get("dataset")
+        if not isinstance(dataset, str) or not dataset.strip():
+            raise ValueError("config['dataset'] must be a non-empty string")
+
+        # endpoint 是否已知（提前 fail fast）
+        try:
+            self._resolve_endpoint(dataset)
+        except Exception as e:
+            raise ValueError(f"unknown datamall dataset: {dataset}") from e
 
     # --------------------------------------------------------
     # Main entry / 主入口
