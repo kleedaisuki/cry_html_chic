@@ -54,10 +54,10 @@ from typing import List, Optional
 
 from ingest.utils.logger import get_logger
 from ingest.cli.bootstrap import bootstrap
-from ingest.configs import load_config_by_name, LoadedConfig
-from ingest.runtime import ensure_plugins_loaded
-from ingest.tasks.run_job import RunJobTask
-from ingest.tasks.interface import Task
+from ingest.cli.configs import load_config_by_name, LoadedConfig
+from ingest.cli.runtime import ensure_plugins_loaded
+from ingest.cli.tasks.run import RunJobTask
+from ingest.cli.tasks.interface import Task
 from ingest.wiring import (
     SOURCES,
     RAW_CACHES,
