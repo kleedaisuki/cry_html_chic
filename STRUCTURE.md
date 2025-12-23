@@ -89,7 +89,7 @@ cry_html_chic/
 │       ├── cli/
 │       │   ├── configs.py              # 解析配置  
 │       │   ├── bootstrap.py            # 自检和初始化
-│       │   ├── runtime.py              # 定义状态机和 RuntimeEnvironment，仅管理资源，不执行任务
+│       │   ├── runtime.py              # 根据配置确保插件被导入
 │       │   ├── tasks/                  # ingest <command> [options] <config_names...> 可执行的指令
 │       │   │   ├── interface.py        # 算子接口，通过继承定义新的算子, 
                                         # 每个 task 需要统一携带的：产物列表、meta、错误信息、diagnostics
