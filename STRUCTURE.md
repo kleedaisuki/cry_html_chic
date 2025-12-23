@@ -86,8 +86,15 @@ cry_html_chic/
 │       │
 │       ├── wiring.py                   # 声明全局注册表
 │       │
-│       ├── cli/ 
-│       │   ├── pipeline.py             # 定义状态机和 runtime                           
+│       ├── cli/
+│       │   ├── configs.py              # 解析配置  
+│       │   ├── bootstrap.py            # 自检和初始化
+│       │   ├── runtime.py              # 定义状态机和 RuntimeEnvironment，仅管理资源，不执行任务
+│       │   ├── tasks/                  # ingest <command> [options] <config_names...> 可执行的指令
+│       │   │   ├── interface.py        # 算子接口，通过继承定义新的算子, 
+                                        # 每个 task 需要统一携带的：产物列表、meta、错误信息、diagnostics
+│       │   │   ├── run.py              # 运行一个配置
+│       │   │   └── ...                 # 运行一个配置                              
 │       │   └── main.py                 # CLI 入口：ingest ...，解析参数
 │       │
 │       ├── sources/
@@ -103,17 +110,19 @@ cry_html_chic/
 │       ├── transform/
 │       │   ├── interface.py                # 算子接口，通过继承定义新的算子
 │       │   ├── transformer.py              # 管理 raw -> IR (Python builtin) -> preprocessed
-│       │   ├── front/                      # operators for raw -> IR                
+│       │   ├── front/                      # operators for raw -> IR
+│       │   │   ├── json_payload.py         # 解析被理解为 JSON 的 bytes               
 │       │   │   └── ... 
-│       │   ├── optimizer/                  # operators for cleaning 
-│       │   │   └── plain_optimizer.py      # 什么都不做，单纯传递 IR 的优化器       
+│       │   ├── optimizer/                  # operators for cleaning
+│       │   │   ├── plain_optimizer.py      # 什么都不做，单纯传递 IR 的优化器               
+│       │   │   └── ...       
 │       │   └── output/                     # operators for IR -> preprocessed
+│       │       ├── js_constants.py         # 输出为 js 常量的编译后端
 │       │       └── ... 
 │       │   
 │       └──  utils/
 │           ├── registry.py             # 注册表
-│           ├── logger.py               # 日志，使用 logging       
-│           └── configs.py              # 读取配置  
+│           └── logger.py               # 日志，使用 logging       
 │
 └── frontend/           # 前端代码
     ├── index.html      # 直接由此启动
