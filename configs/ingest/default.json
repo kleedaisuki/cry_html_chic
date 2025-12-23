@@ -1,0 +1,74 @@
+{
+    "version": 1,
+    "profile": "default",
+    "log_level": "INFO",
+    "paths": {
+        "configs_root": "configs/ingest",
+        "data_root": "data",
+        "raw_root": "data/raw",
+        "preprocessed_root": "data/preprocessed"
+    },
+    "execution": {
+        "parallelism": 4,
+        "strategy": "threads",
+        "fail_fast": true
+    },
+    "cache_configs": {
+        "raw": {
+            "name": "fs_raw",
+            "config": {
+                "root": "data/raw"
+            }
+        },
+        "preprocessed": {
+            "name": "fs_preprocessed",
+            "config": {
+                "root": "data/preprocessed"
+            }
+        }
+    },
+    "transform_configs": {
+        "ir_version": 1,
+        "target": {
+            "js_abi_version": 1,
+            "module_format": "esm",
+            "layout": "single",
+            "path_prefix": "constants/",
+            "options": {}
+        }
+    },
+    "plugins": [
+        "ingest.sources.datamall",
+        "ingest.cache.raw",
+        "ingest.cache.preprocessed",
+        "ingest.transform.front.json_payload",
+        "ingest.transform.optimizer.plain_optimizer",
+        "ingest.transform.output.js_constants"
+    ],
+    "jobs": [
+        {
+            "name": "datamall_bus_stops",
+            "source": {
+                "name": "datamall",
+                "config": {
+                    "dataset": "BusStops",
+                    "account_key_env": "LTA_API_KEY"
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "json_payload",
+                    "config": {}
+                },
+                "optimizer": {
+                    "name": "plain",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "js_constants",
+                    "config": {}
+                }
+            }
+        }
+    ]
+}
