@@ -18,9 +18,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from ingest.utils.logger import get_logger
-from ingest.cli.configs import LoadedConfig, JobConfig
-from ingest.cli.tasks.interface import (
+from ...utils.logger import get_logger
+from ..configs import LoadedConfig, JobConfig
+from .interface import (
     Task,
     TaskState,
     TaskError,
@@ -28,9 +28,9 @@ from ingest.cli.tasks.interface import (
     Diagnostics,
 )
 
-from ingest.cache.interface import CacheKey
-from ingest.transform.interface import TransformerSpec, JsTargetSpec
-from ingest.transform.transformer import Transformer
+from ...cache.interface import CacheKey
+from ...transform.interface import TransformerSpec, JsTargetSpec
+from ...transform.transformer import Transformer
 
 _LOG = get_logger(__name__)
 
@@ -76,7 +76,7 @@ class RunJobTask(Task):
         paths = self.loaded.paths
 
         # 延迟 import：避免 import-time 副作用
-        from ingest import wiring
+        from ... import wiring
 
         # -------- caches --------
         raw_cache_cls = wiring.RAW_CACHES.require(cfg.cache_configs.raw.name)
@@ -138,7 +138,7 @@ class RunJobTask(Task):
         _LOG.info("task[%s] run start", self.job.name)
 
         try:
-            from ingest import wiring
+            from ... import wiring
 
             cfg = self.loaded.config
 

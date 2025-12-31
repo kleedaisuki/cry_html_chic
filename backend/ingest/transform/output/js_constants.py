@@ -15,9 +15,9 @@ from __future__ import annotations
 import json
 from typing import Mapping
 
-from ingest.utils.logger import get_logger
-from ingest.wiring import register_backend
-from ingest.transform.interface import (
+from ...utils.logger import get_logger
+from ...wiring import register_backend
+from ..interface import (
     BackendCompiler,
     IRModule,
     JsTargetSpec,

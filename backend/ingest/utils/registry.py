@@ -297,6 +297,21 @@ class Registry(Generic[TBase]):
                 ok = issubclass(target_cls, self._base)  # type: ignore[arg-type]
             except TypeError:
                 ok = False
+
+            # Fallback to structural (duck) typing for Protocols or when
+            # issubclass cannot be used (e.g., runtime_checkable Protocols
+            # or modules loaded under different names). Accept classes that
+            # expose the expected members (e.g. `optimize`, `compile`, `emit`)
+            # and have `name` and `version` attributes.
+            if not ok:
+                has_interface = bool(
+                    (hasattr(target_cls, "optimize") or hasattr(target_cls, "compile") or hasattr(target_cls, "emit"))
+                    and hasattr(target_cls, "name")
+                    and hasattr(target_cls, "version")
+                )
+                if has_interface:
+                    ok = True
+
             if not ok:
                 raise InvalidRegistrationError(
                     f"[{self._namespace}] class {target_cls.__module__}.{target_cls.__qualname__} "
