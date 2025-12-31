@@ -43,6 +43,7 @@
         "ingest.cache.preprocessed",
         "ingest.transform.front.json_payload",
         "ingest.transform.optimizer.plain_optimizer",
+        "ingest.transform.optimizer.data_cleaning",
         "ingest.transform.output.js_constants"
     ],
     "jobs": [
@@ -63,6 +64,38 @@
                 "optimizer": {
                     "name": "plain",
                     "config": {}
+                },
+                "backend": {
+                    "name": "js_constants",
+                    "config": {}
+                }
+            }
+        },
+        {
+            "name": "datamall_passenger_flow",
+            "source": {
+                "name": "datamall",
+                "config": {
+                    "dataset": "PassengerVolumeByOriginDestinationTrain",
+                    "account_key_env": "LTA_API_KEY"
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "json_payload",
+                    "config": {
+                        "extract_key": "value"
+                    }
+                },
+                "optimizer": {
+                    "name": "data_cleaning",
+                    "config": {
+                        "drop_missing_rows": true,
+                        "aggregate_by_hour": true,
+                        "time_field": "timestamp",
+                        "value_field": "flow",
+                        "group_by": ["route_id"]
+                    }
                 },
                 "backend": {
                     "name": "js_constants",
