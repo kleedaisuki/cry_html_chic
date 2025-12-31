@@ -29,15 +29,84 @@
 
 from __future__ import annotations
 
+import json
 import math
 import statistics
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
-from ..ingest.utils.logger import get_logger
-from ..ingest.wiring import register_optimizer
-from ..ingest.transform.interface import IRModule, JsonValue, Optimizer
+from ingest.utils.logger import get_logger
+from ingest.wiring import register_optimizer
+from ingest.transform.interface import IRModule, JsonValue, Optimizer
 
 _LOG = get_logger(__name__)
+
+# 全局缓存 routes 配置
+_routes_config_cache: Optional[Dict[str, Any]] = None
+
+
+def _load_routes_config(config_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    @brief 加载 routes.json 配置 / Load routes.json config.
+    """
+    global _routes_config_cache
+    if _routes_config_cache is not None:
+        return _routes_config_cache
+
+    # 查找 routes.json
+    search_paths = [
+        config_path,
+        "configs/routes.json",
+        str(Path(__file__).parent.parent.parent.parent / "configs" / "routes.json"),
+    ]
+
+    routes_data = {}
+    for path in search_paths:
+        if path:
+            p = Path(path)
+            if p.exists():
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        routes_data = json.load(f)
+                    _LOG.info("data_cleaning: loaded routes config from %s", p)
+                    break
+                except Exception as e:
+                    _LOG.warning("data_cleaning: failed to load routes config from %s: %s", p, e)
+
+    _routes_config_cache = routes_data
+    return routes_data
+
+
+def _map_station_to_route(
+    station_code: str,
+    routes_data: Dict[str, Any],
+) -> Optional[str]:
+    """
+    @brief 将站点代码映射到线路名称 / Map station code to route name.
+    """
+    if not station_code or not routes_data:
+        return None
+
+    mapping = routes_data.get("station_to_route_mapping", {})
+    return mapping.get(station_code)
+
+
+def _get_route_info(
+    route_id: str,
+    routes_data: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """
+    @brief 获取线路详细信息 / Get route details.
+    """
+    if not route_id or not routes_data:
+        return None
+
+    for transport_type in ["mrt", "lrt", "bus"]:
+        routes = routes_data.get("routes", {}).get(transport_type, {})
+        if route_id in routes:
+            return {"type": transport_type, "info": routes[route_id]}
+
+    return None
 
 
 def _is_null_value(value: Any) -> bool:
@@ -364,6 +433,12 @@ class DataCleaningOptimizer(Optimizer):
             transport_type_field = None
         route_id_field = str(config.get("route_id_field", "route_id"))
 
+        # routes.json 配置路径（用于站点→线路映射）
+        routes_config_path = config.get("routes_config_path")
+
+        # 加载 routes 配置
+        routes_data = _load_routes_config(routes_config_path)
+
         # 提取数据
         data = module.get("data")
         if not isinstance(data, list):
@@ -411,6 +486,15 @@ class DataCleaningOptimizer(Optimizer):
                     cleaned_records.append(cleaned)
             else:
                 cleaned_records.append(cleaned)
+
+        # 站点→线路映射（如果需要）
+        if routes_data and cleaned_records:
+            station_to_route = routes_data.get("station_to_route_mapping", {})
+            for record in cleaned_records:
+                # 尝试从现有 route_id 字段获取站点代码
+                station_code = record.get(route_id_field)
+                if station_code and station_code in station_to_route:
+                    record[route_id_field] = station_to_route[station_code]
 
         # 按小时聚合（如果需要）
         if aggregate_by_hour and time_field and value_field:
