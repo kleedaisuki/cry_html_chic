@@ -1,7 +1,7 @@
 # 数据清洗规格
 # Data Cleaning Specification
 
-> **版本**: v1.0
+> **版本**: v1.1
 > **创建日期**: 2025-12-31
 > **状态**: 🚧 开发中
 
@@ -57,15 +57,45 @@
 | `value_field` | `string` | 要聚合的数值字段名（默认: `flow`） |
 | `group_by` | `string[]` | 分组字段列表 |
 
-### 4. 数值字段验证
+### 4. 输出格式转换
 
 | 配置项 | 类型 | 说明 |
 |-------|------|------|
-| `numeric_fields` | `string[]` | 指定哪些字段是数值类型，用于异常值检测 |
+| `output_format` | `string` | 输出格式：`"raw"`（默认）或 `"frontend_api"` |
+| `flow_sum_field` | `string` | 聚合后的流量和字段名（默认: `{value_field}_sum`） |
+| `flow_output_field` | `string` | 输出到前端的流量字段名（默认: `flow`） |
+| `capacity_field` | `string` | 容量字段名（可选，用于计算 utilization） |
+| `transport_type_field` | `string` | 交通类型字段名（可选） |
+| `route_id_field` | `string` | 线路 ID 字段名（默认: `route_id`） |
 
 ---
 
 ## 配置示例
+
+### 前端 API 格式配置（推荐用于客流数据）
+
+```json
+{
+  "optimizer": {
+    "name": "data_cleaning",
+    "config": {
+      "drop_missing_rows": true,
+      "outlier_bounds": {
+        "min": 0,
+        "max": 12000
+      },
+      "aggregate_by_hour": true,
+      "time_field": "timestamp",
+      "value_field": "flow",
+      "group_by": ["route_id"],
+      "output_format": "frontend_api",
+      "route_id_field": "route_id",
+      "capacity_field": "capacity",
+      "transport_type_field": "type"
+    }
+  }
+}
+```
 
 ### 完整配置
 
@@ -84,26 +114,13 @@
       "aggregate_by_hour": true,
       "time_field": "timestamp",
       "value_field": "flow",
-      "group_by": ["route_id", "transport_type"]
-    }
-  }
-}
-```
-
-### 客流数据配置
-
-```json
-{
-  "optimizer": {
-    "name": "data_cleaning",
-    "config": {
-      "drop_missing_rows": true,
-      "outlier_bounds": null,
-      "numeric_fields": ["flow"],
-      "aggregate_by_hour": true,
-      "time_field": "timestamp",
-      "value_field": "flow",
-      "group_by": ["route_id"]
+      "group_by": ["route_id", "transport_type"],
+      "output_format": "frontend_api",
+      "flow_sum_field": "flow_sum",
+      "flow_output_field": "flow",
+      "capacity_field": "capacity",
+      "transport_type_field": "type",
+      "route_id_field": "route_id"
     }
   }
 }
@@ -124,50 +141,54 @@
 
 ## 输出格式
 
-### IRModule 结构
+### Raw 格式（默认）
 
 ```json
 {
   "ir_kind": "data_cleaning",
-  "provenance": {
-    "source_name": "...",
-    "fetched_at_iso": "...",
-    "cleaning": {
-      "optimizer": "data_cleaning@0.1.0",
-      "drop_null_fields": [...],
-      "drop_missing_rows": true,
-      "outlier_bounds": [0, 50000],
-      "aggregate_by_hour": true
+  "provenance": {...},
+  "data": [
+    {
+      "route_id": "NS_LINE",
+      "timestamp": "2024-01-01T08",
+      "flow_sum": 85000,
+      "flow_avg": 8500,
+      "flow_min": 7500,
+      "flow_max": 9500,
+      "record_count": 10
     }
-  },
-  "data": [...],
-  "_quality_report": {
-    "original_record_count": 1000,
-    "cleaned_record_count": 980,
-    "dropped_count": 20,
-    "null_fields": {
-      "flow": 5,
-      "capacity": 3
-    },
-    "outlier_fields": {
-      "flow": 12
-    },
-    "quality_score": 98.0
-  }
+  ],
+  "_quality_report": {...}
 }
 ```
 
-### 聚合后的数据记录
+### Frontend API 格式
 
 ```json
 {
-  "route_id": "NS_LINE",
-  "timestamp": "2024-01-01T08",
-  "flow_sum": 85000,
-  "flow_avg": 8500,
-  "flow_min": 7500,
-  "flow_max": 9500,
-  "record_count": 10
+  "ir_kind": "passenger_flow",
+  "provenance": {...},
+  "data": {
+    "timestamp": "2024-01-01T08",
+    "data": [
+      {
+        "route_id": "NS_LINE",
+        "type": "mrt",
+        "flow": 8500,
+        "capacity": 12000,
+        "utilization": 0.708
+      },
+      {
+        "route_id": "EW_LINE",
+        "type": "mrt",
+        "flow": 9200,
+        "capacity": 12000,
+        "utilization": 0.767
+      }
+    ],
+    "total_flow": 78543
+  },
+  "_quality_report": {...}
 }
 ```
 
@@ -208,7 +229,11 @@
             "aggregate_by_hour": true,
             "time_field": "timestamp",
             "value_field": "flow",
-            "group_by": ["route_id"]
+            "group_by": ["route_id"],
+            "output_format": "frontend_api",
+            "route_id_field": "route_id",
+            "capacity_field": "capacity",
+            "transport_type_field": "type"
           }
         },
         "backend": {
@@ -270,6 +295,28 @@ IQR = Q3 - Q1
 
 ---
 
+## 前端 API 格式详解
+
+### 数据结构
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `timestamp` | `string` | 时间戳（聚合后的小时） |
+| `data` | `array` | 线路数据数组 |
+| `total_flow` | `number` | 所有线路的客流量总和 |
+
+### 单条线路数据
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `route_id` | `string` | 线路 ID |
+| `type` | `string` | 交通类型（mrt/lrt/bus） |
+| `flow` | `number` | 客流量（人次/小时） |
+| `capacity` | `number` | 线路容量（可选） |
+| `utilization` | `number` | 利用率 = flow / capacity（可选） |
+
+---
+
 ## 最佳实践
 
 ### MRT 客流量数据
@@ -285,7 +332,11 @@ IQR = Q3 - Q1
   "aggregate_by_hour": true,
   "time_field": "timestamp",
   "value_field": "flow",
-  "group_by": ["route_id"]
+  "group_by": ["route_id"],
+  "output_format": "frontend_api",
+  "route_id_field": "route_id",
+  "capacity_field": "capacity",
+  "transport_type_field": "type"
 }
 ```
 
@@ -302,7 +353,11 @@ IQR = Q3 - Q1
   "aggregate_by_hour": true,
   "time_field": "timestamp",
   "value_field": "flow",
-  "group_by": ["route_id"]
+  "group_by": ["route_id"],
+  "output_format": "frontend_api",
+  "route_id_field": "route_id",
+  "capacity_field": "capacity",
+  "transport_type_field": "type"
 }
 ```
 
@@ -319,7 +374,11 @@ IQR = Q3 - Q1
   "aggregate_by_hour": true,
   "time_field": "timestamp",
   "value_field": "flow",
-  "group_by": ["route_id"]
+  "group_by": ["route_id"],
+  "output_format": "frontend_api",
+  "route_id_field": "route_id",
+  "capacity_field": "capacity",
+  "transport_type_field": "type"
 }
 ```
 
@@ -329,6 +388,7 @@ IQR = Q3 - Q1
 
 | 日期 | 版本 | 变更内容 |
 |------|------|----------|
+| 2025-12-31 | 1.1 | 添加前端 API 格式输出支持 |
 | 2025-12-31 | 1.0 | 初始版本 |
 
 ---

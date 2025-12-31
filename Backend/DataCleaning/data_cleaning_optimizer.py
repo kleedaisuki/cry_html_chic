@@ -9,14 +9,21 @@
  * - 检测和处理异常值（基于统计方法或固定阈值）
  * - 按时间聚合客流数据（按小时）
  * - 生成数据质量报告和元数据
+ * - 支持输出前端 API 格式
  *
  * 配置项 / Config options:
  * - drop_null_fields: 要删除的包含 null 值的字段列表
  * - drop_missing_rows: 是否删除包含任何 null 值的行
  * - outlier_bounds: 异常值边界 {min, max} 或 null（使用 IQR）
  * - aggregate_by_hour: 是否按小时聚合时间序列数据
- * - aggregate_field: 要聚合的数值字段名
+ * - time_field: 时间字段名
+ * - value_field: 要聚合的数值字段名
  * - group_by: 分组字段列表
+ * - output_format: 输出格式 ("raw" | "frontend_api")
+ * - flow_sum_field: 聚合后的流量和字段名
+ * - flow_output_field: 输出到前端的流量字段名
+ * - capacity_field: 容量字段名（可选）
+ * - transport_type_field: 交通类型字段名（可选）
  */
 """
 
@@ -26,9 +33,9 @@ import math
 import statistics
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
-from ingest.utils.logger import get_logger
-from ingest.wiring import register_optimizer
-from ingest.transform.interface import IRModule, JsonValue
+from ..ingest.utils.logger import get_logger
+from ..ingest.wiring import register_optimizer
+from ..ingest.transform.interface import IRModule, JsonValue, Optimizer
 
 _LOG = get_logger(__name__)
 
@@ -209,8 +216,90 @@ def _generate_quality_report(
     }
 
 
+def _transform_to_frontend_api(
+    records: List[Dict[str, JsonValue]],
+    *,
+    flow_sum_field: str,
+    flow_output_field: str,
+    capacity_field: Optional[str],
+    transport_type_field: Optional[str],
+    route_id_field: str,
+    time_field: str,
+) -> Dict[str, JsonValue]:
+    """
+    @brief 转换为前端 API 格式 / Transform to frontend API format.
+
+    输出结构:
+    {
+        "timestamp": "2024-01-01T08:00:00",
+        "data": [
+            {
+                "route_id": "NS_LINE",
+                "type": "mrt",
+                "flow": 8500,
+                "capacity": 12000,
+                "utilization": 0.708
+            }
+        ],
+        "total_flow": 78543
+    }
+    """
+    if not records:
+        return {
+            "timestamp": "",
+            "data": [],
+            "total_flow": 0,
+        }
+
+    # 收集所有时间戳，找到最早的一个作为基准时间
+    timestamps = [r.get(time_field, "") for r in records if r.get(time_field)]
+    timestamp = timestamps[0] if timestamps else ""
+
+    # 转换每条记录
+    transformed_data: List[Dict[str, JsonValue]] = []
+    total_flow = 0
+
+    for record in records:
+        flow_sum = _validate_number(record.get(flow_sum_field))
+        if flow_sum is None:
+            continue
+
+        total_flow += flow_sum
+
+        # 构建输出记录
+        transformed: Dict[str, JsonValue] = {
+            "route_id": record.get(route_id_field, ""),
+            flow_output_field: int(flow_sum) if flow_sum == int(flow_sum) else flow_sum,
+        }
+
+        # 添加交通类型
+        if transport_type_field:
+            trans_type = record.get(transport_type_field)
+            if trans_type is not None:
+                transformed["type"] = trans_type
+
+        # 添加容量和利用率
+        if capacity_field:
+            capacity = _validate_number(record.get(capacity_field))
+            if capacity is not None and capacity > 0:
+                transformed["capacity"] = int(capacity) if capacity == int(capacity) else capacity
+                utilization = flow_sum / capacity
+                transformed["utilization"] = round(utilization, 3)
+
+        transformed_data.append(transformed)
+
+    # 按 route_id 排序
+    transformed_data.sort(key=lambda x: str(x.get("route_id", "")))
+
+    return {
+        "timestamp": timestamp,
+        "data": transformed_data,
+        "total_flow": int(total_flow) if total_flow == int(total_flow) else total_flow,
+    }
+
+
 @register_optimizer("data_cleaning")
-class DataCleaningOptimizer:
+class DataCleaningOptimizer(Optimizer):
     """
     @brief 数据清洗优化器 / Data cleaning optimizer.
 
@@ -219,10 +308,11 @@ class DataCleaningOptimizer:
     - 检测和处理异常值（使用 IQR 或固定边界）
     - 按时间聚合数据（按小时）
     - 生成数据质量报告
+    - 支持输出前端 API 格式
     """
 
     name: str = "data_cleaning"
-    version: str = "0.1.0"
+    version: str = "0.2.0"
 
     def optimize(
         self, module: IRModule, *, config: Mapping[str, JsonValue]
@@ -261,6 +351,18 @@ class DataCleaningOptimizer:
         numeric_fields = config.get("numeric_fields")
         if numeric_fields and not isinstance(numeric_fields, list):
             numeric_fields = None
+
+        # 输出格式配置
+        output_format = str(config.get("output_format", "raw"))
+        flow_sum_field = str(config.get("flow_sum_field", f"{value_field}_sum"))
+        flow_output_field = str(config.get("flow_output_field", "flow"))
+        capacity_field = config.get("capacity_field")
+        if capacity_field is not None and not isinstance(capacity_field, str):
+            capacity_field = None
+        transport_type_field = config.get("transport_type_field")
+        if transport_type_field is not None and not isinstance(transport_type_field, str):
+            transport_type_field = None
+        route_id_field = str(config.get("route_id_field", "route_id"))
 
         # 提取数据
         data = module.get("data")
@@ -338,13 +440,32 @@ class DataCleaningOptimizer:
             quality_report.get("quality_score", 0),
         )
 
-        # 构建输出模块
-        output: IRModule = {
-            "ir_kind": "data_cleaning",
-            "provenance": dict(module.get("provenance", {})),
-            "data": cleaned_records,
-            "_quality_report": quality_report,
-        }
+        # 转换输出格式
+        if output_format == "frontend_api":
+            frontend_data = _transform_to_frontend_api(
+                cleaned_records,
+                flow_sum_field=flow_sum_field,
+                flow_output_field=flow_output_field,
+                capacity_field=capacity_field,
+                transport_type_field=transport_type_field,
+                route_id_field=route_id_field,
+                time_field=time_field,
+            )
+
+            output: IRModule = {
+                "ir_kind": "passenger_flow",
+                "provenance": dict(module.get("provenance", {})),
+                "data": frontend_data,
+                "_quality_report": quality_report,
+            }
+        else:
+            # 原始格式输出
+            output = {
+                "ir_kind": "data_cleaning",
+                "provenance": dict(module.get("provenance", {})),
+                "data": cleaned_records,
+                "_quality_report": quality_report,
+            }
 
         # 保留原始 provenance 并添加清洗信息
         if "provenance" in output["provenance"]:
@@ -356,6 +477,61 @@ class DataCleaningOptimizer:
                     list(outlier_bounds) if outlier_bounds else "auto_iqr"
                 ),
                 "aggregate_by_hour": aggregate_by_hour,
+                "output_format": output_format,
             }
 
         return output
+
+
+if __name__ == "__main__":
+    # 简单测试
+    sample_module: IRModule = {
+        "ir_kind": "raw_data",
+        "provenance": {"source": "test_source"},
+        "data": [
+            {"timestamp": "2024-01-01T08:30:00", "flow": 100, "location": "A", "route_id": "NS1", "type": "mrt", "capacity": 12000},
+            {"timestamp": "2024-01-01T08:45:00", "flow": None, "location": "A", "route_id": "NS1", "type": "mrt", "capacity": 12000},
+            {"timestamp": "2024-01-01T09:15:00", "flow": 3000, "location": "A", "route_id": "NS1", "type": "mrt", "capacity": 12000},  # 异常值
+            {"timestamp": "2024-01-01T09:30:00", "flow": 150, "location": "A", "route_id": "NS1", "type": "mrt", "capacity": 12000},
+            {"timestamp": "2024-01-01T10:00:00", "flow": "", "location": "A", "route_id": "NS1", "type": "mrt", "capacity": 12000},
+            {"timestamp": "2024-01-01T08:30:00", "flow": 200, "location": "B", "route_id": "EW1", "type": "mrt", "capacity": 12000},
+            {"timestamp": "2024-01-01T08:45:00", "flow": 250, "location": "B", "route_id": "EW1", "type": "mrt", "capacity": 12000},
+        ],
+    }
+
+    optimizer = DataCleaningOptimizer()
+
+    # 测试 raw 格式
+    config_raw = {
+        "drop_null_fields": ["flow"],
+        "drop_missing_rows": True,
+        "outlier_bounds": {"min": 0, "max": 2000},
+        "aggregate_by_hour": True,
+        "time_field": "timestamp",
+        "value_field": "flow",
+        "group_by": ["route_id"],
+    }
+
+    print("=== Raw Format ===")
+    cleaned_module = optimizer.optimize(sample_module, config=config_raw)
+    import pprint
+    pprint.pprint(cleaned_module)
+
+    # 测试 frontend_api 格式
+    config_api = {
+        "drop_null_fields": ["flow"],
+        "drop_missing_rows": True,
+        "outlier_bounds": {"min": 0, "max": 2000},
+        "aggregate_by_hour": True,
+        "time_field": "timestamp",
+        "value_field": "flow",
+        "group_by": ["route_id"],
+        "output_format": "frontend_api",
+        "route_id_field": "route_id",
+        "capacity_field": "capacity",
+        "transport_type_field": "type",
+    }
+
+    print("\n=== Frontend API Format ===")
+    api_module = optimizer.optimize(sample_module, config=config_api)
+    pprint.pprint(api_module)
