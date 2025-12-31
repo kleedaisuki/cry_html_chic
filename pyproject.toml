@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sg-transit-vis"
+version = "0.1.0"
+description = "Offline data ingestion and JS artifact generation pipeline for Singapore transit visualization"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+
+authors = [{ name = "Jiarui Guo", email = "guojiarui@mail.nankai.edu.cn" }]
+
+keywords = [
+    "data-ingestion",
+    "cli",
+    "visualization",
+    "d3",
+    "leaflet",
+    "singapore-transit",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+
+dependencies = [
+    "requests>=2.31",
+    "pandas>=2.1",
+    "numpy>=1.26",
+    "python-dateutil>=2.9",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov", "ruff", "mypy", "types-requests"]
+
+[tool.setuptools]
+package-dir = { "" = "backend" }
+packages = ["ingest"]
+
+[tool.setuptools.package-data]
+ingest = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q"
+testpaths = ["backend"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "B"]
+ignore = ["E203"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[project.scripts]
+ingest = "ingest.cli.main:main"
