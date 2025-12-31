@@ -40,10 +40,10 @@
     "plugins": [
         "ingest.sources.datamall",
         "ingest.cache.raw",
-        "ingest.cache.preprocessed",
+        "ingest.cache.preprocess",
         "ingest.transform.front.json_payload",
         "ingest.transform.optimizer.plain_optimizer",
-        "ingest.transform.optimizer.data_cleaning",
+        "ingest.transform.optimizer.data_cleaning_optimizer",
         "ingest.transform.output.js_constants"
     ],
     "jobs": [
@@ -53,7 +53,7 @@
                 "name": "datamall",
                 "config": {
                     "dataset": "BusStops",
-                    "account_key_env": "LTA_API_KEY"
+                    "account_key": "你的LTA_API_KEY"
                 }
             },
             "transform": {
@@ -77,7 +77,7 @@
                 "name": "datamall",
                 "config": {
                     "dataset": "PassengerVolumeByOriginDestinationTrain",
-                    "account_key_env": "LTA_API_KEY"
+                    "account_key": "你的LTA_API_KEY"
                 }
             },
             "transform": {
@@ -94,7 +94,12 @@
                         "aggregate_by_hour": true,
                         "time_field": "timestamp",
                         "value_field": "flow",
-                        "group_by": ["route_id"]
+                        "group_by": ["route_id"],
+                        "routes_config_path": "configs/routes.json",
+                        "output_format": "frontend_api",
+                        "route_id_field": "route_id",
+                        "capacity_field": "capacity",
+                        "transport_type_field": "type"
                     }
                 },
                 "backend": {

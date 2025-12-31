@@ -84,14 +84,8 @@ class RunJobTask(Task):
             cfg.cache_configs.preprocessed.name
         )
 
-        raw_cache = raw_cache_cls(
-            root=paths.raw_root,
-            config=cfg.cache_configs.raw.config,
-        )
-        pre_cache = pre_cache_cls(
-            root=paths.preprocessed_root,
-            config=cfg.cache_configs.preprocessed.config,
-        )
+        raw_cache = raw_cache_cls(base_dir=paths.raw_root)
+        pre_cache = pre_cache_cls(base_dir=paths.preprocessed_root)
 
         # -------- transformer spec --------
         tcfg = cfg.transform_configs
@@ -144,7 +138,7 @@ class RunJobTask(Task):
 
             # -------- source --------
             source_cls = wiring.SOURCES.require(self.job.source.name)
-            source = source_cls()
+            source = source_cls(**self.job.source.config)
 
             source.validate(self.job.source.config)
 
@@ -182,7 +176,7 @@ class RunJobTask(Task):
                 message=str(e),
                 traceback=traceback.format_exc(),
             )
-            _LOG.error("task[%s] failed: %s", self.job.name, e)
+            _LOG.error("task[%s] failed: %s\n%s", self.job.name, e, traceback.format_exc())
             raise
 
     def close(self) -> None:

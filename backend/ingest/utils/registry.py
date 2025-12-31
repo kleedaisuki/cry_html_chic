@@ -301,16 +301,27 @@ class Registry(Generic[TBase]):
             # Fallback to structural (duck) typing for Protocols or when
             # issubclass cannot be used (e.g., runtime_checkable Protocols
             # or modules loaded under different names). Accept classes that
-            # expose the expected members (e.g. `optimize`, `compile`, `emit`)
-            # and have `name` and `version` attributes.
+            # expose the expected members and have `name` and `version` attributes.
             if not ok:
-                has_interface = bool(
-                    (hasattr(target_cls, "optimize") or hasattr(target_cls, "compile") or hasattr(target_cls, "emit"))
-                    and hasattr(target_cls, "name")
-                    and hasattr(target_cls, "version")
-                )
-                if has_interface:
-                    ok = True
+                # 收集 base 类的所有必需方法名
+                base_methods = set()
+                for attr in dir(self._base):
+                    if not attr.startswith("_"):
+                        attr_val = getattr(self._base, attr, None)
+                        if callable(attr_val) or isinstance(attr_val, property):
+                            base_methods.add(attr)
+
+                # 检查 target_cls 是否实现了 base 的所有必需方法
+                if base_methods:
+                    has_all_methods = True
+                    for method in base_methods:
+                        if method.startswith("_"):
+                            continue
+                        if not hasattr(target_cls, method):
+                            has_all_methods = False
+                            break
+                    if has_all_methods:
+                        ok = True
 
             if not ok:
                 raise InvalidRegistrationError(

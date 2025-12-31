@@ -619,3 +619,13 @@ class FileSystemPreprocessedCache(PreprocessedCache):
         if isinstance(v, dict):
             return all(isinstance(k, str) and self._is_json_value(val) for k, val in v.items())
         return False
+
+
+# ============================================================
+# Registry / 注册表
+# ============================================================
+
+from ..wiring import register_preprocessed_cache
+
+# 注册 FileSystemPreprocessedCache
+register_preprocessed_cache("fs_preprocessed")(FileSystemPreprocessedCache)

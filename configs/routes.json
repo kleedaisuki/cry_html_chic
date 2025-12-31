@@ -1,0 +1,178 @@
+{
+  "version": "1.0",
+  "description": "新加坡公共交通线路定义 - Singapore Transit Routes Definition",
+  "last_updated": "2025-12-31",
+  "capacity_defaults": {
+    "mrt": 12000,
+    "lrt": 3500,
+    "bus": 800
+  },
+  "routes": {
+    "mrt": {
+      "NS_LINE": {
+        "name": "North-South Line",
+        "chinese_name": "南北线",
+        "color": "#e32e00",
+        "stations": [
+          "NS1", "NS2", "NS3", "NS4", "NS5", "NS6", "NS7", "NS8", "NS9",
+          "NS10", "NS11", "NS12", "NS13", "NS14", "NS15", "NS16", "NS17",
+          "NS18", "NS19", "NS20", "NS21", "NS22", "NS23", "NS24", "NS25",
+          "NS26", "NS27", "NS28"
+        ],
+        "capacity": 12000
+      },
+      "EW_LINE": {
+        "name": "East-West Line",
+        "chinese_name": "东西线",
+        "color": "#009e60",
+        "stations": [
+          "EW1", "EW2", "EW3", "EW4", "EW5", "EW6", "EW7", "EW8", "EW9",
+          "EW10", "EW11", "EW12", "EW13", "EW14", "EW15", "EW16", "EW17",
+          "EW18", "EW19", "EW20", "EW21", "EW22", "EW23", "EW24", "EW25",
+          "EW26", "EW27", "EW28", "EW29", "EW30", "EW31", "EW32", "EW33"
+        ],
+        "capacity": 12000
+      },
+      "CG_LINE": {
+        "name": "East-West Line (Changi Airport Branch)",
+        "chinese_name": "东西线（樟宜机场支线）",
+        "color": "#009e60",
+        "stations": ["CG1", "CG2"],
+        "capacity": 12000
+      },
+      "CC_LINE": {
+        "name": "Circle Line",
+        "chinese_name": "环线",
+        "color": "#fa9e0a",
+        "stations": [
+          "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8", "CC9",
+          "CC10", "CC11", "CC12", "CC13", "CC14", "CC15", "CC16", "CC17",
+          "CC18", "CC19", "CC20", "CC21", "CC22", "CC23", "CC24", "CC25",
+          "CC26", "CC27", "CC28", "CC29", "CC30", "CC31", "CC32", "CC33",
+          "CC34", "CC35", "CC36", "CC37"
+        ],
+        "capacity": 12000
+      },
+      "NE_LINE": {
+        "name": "North-East Line",
+        "chinese_name": "东北线",
+        "color": "#9900aa",
+        "stations": [
+          "NE1", "NE3", "NE4", "NE5", "NE6", "NE7", "NE8", "NE9", "NE10",
+          "NE11", "NE12", "NE13", "NE14", "NE15", "NE16", "NE17"
+        ],
+        "capacity": 12000
+      },
+      "DT_LINE": {
+        "name": "Downtown Line",
+        "chinese_name": "滨海市区线",
+        "color": "#0055aa",
+        "stations": [
+          "DT1", "DT2", "DT3", "DT4", "DT5", "DT6", "DT7", "DT8", "DT9",
+          "DT10", "DT11", "DT12", "DT13", "DT14", "DT15", "DT16", "DT17",
+          "DT18", "DT19", "DT20", "DT21", "DT22", "DT23", "DT24", "DT25",
+          "DT26", "DT27", "DT28", "DT29", "DT30", "DT31", "DT32", "DT33",
+          "DT34", "DT35", "DT36", "DT37", "DT38", "DT39", "DT40", "DT41",
+          "DT42", "DT43"
+        ],
+        "capacity": 12000
+      },
+      "TE_LINE": {
+        "name": "Thomson-East Coast Line",
+        "chinese_name": "汤申-东海岸线",
+        "color": "#d1050c",
+        "stations": [
+          "TE1", "TE2", "TE3", "TE4", "TE5", "TE6", "TE7", "TE8", "TE9",
+          "TE10", "TE11", "TE12", "TE13", "TE14", "TE15", "TE16", "TE17",
+          "TE18", "TE19", "TE20", "TE21", "TE22", "TE23", "TE24", "TE25",
+          "TE26", "TE27", "TE28", "TE29", "TE30", "TE31", "TE32", "TE33",
+          "TE34", "TE35", "TE36", "TE37"
+        ],
+        "capacity": 12000
+      }
+    },
+    "lrt": {
+      "BP_LINE": {
+        "name": "Bukit Panjang LRT",
+        "chinese_name": "武吉班让轻轨",
+        "color": "#98c618",
+        "stations": ["BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7", "BP8", "BP9", "BP10", "BP11", "BP12", "BP13", "BP14"],
+        "capacity": 3500
+      },
+      "PT_LINE": {
+        "name": "Punggol LRT (East Loop)",
+        "chinese_name": "榜鹅轻轨（东环）",
+        "color": "#f68dbf",
+        "stations": ["PT1", "PT2", "PT3", "PT4", "PT5", "PT6", "PT7", "PT8"],
+        "capacity": 3500
+      },
+      "PW_LINE": {
+        "name": "Punggol LRT (West Loop)",
+        "chinese_name": "榜鹅轻轨（西环）",
+        "color": "#f68dbf",
+        "stations": ["PW1", "PW2", "PW3", "PW4", "PW5", "PW6", "PW7"],
+        "capacity": 3500
+      },
+      "STC_LINE": {
+        "name": "Sengkang LRT (East Loop)",
+        "chinese_name": "盛港轻轨（东环）",
+        "color": "#75c1dd",
+        "stations": ["STC1", "STC2", "STC3", "STC4", "STC5", "STC6", "STC7"],
+        "capacity": 3500
+      },
+      "SW_LINE": {
+        "name": "Sengkang LRT (West Loop)",
+        "chinese_name": "盛港轻轨（西环）",
+        "color": "#75c1dd",
+        "stations": ["SW1", "SW2", "SW3", "SW4", "SW5", "SW6", "SW7", "SW8"],
+        "capacity": 3500
+      }
+    },
+    "bus": {
+      "BUS_EXPRESS": {
+        "name": "Express Bus Routes",
+        "chinese_name": "快捷公交",
+        "color": "#ff7f00",
+        "capacity": 800
+      },
+      "BUS_FEEDER": {
+        "name": "Feeder Bus Routes",
+        "chinese_name": "接驳公交",
+        "color": "#ffbf7f",
+        "capacity": 400
+      },
+      "BUS_TRUNK": {
+        "name": "Trunk Bus Routes",
+        "chinese_name": "干线公交",
+        "color": "#ffa500",
+        "capacity": 800
+      }
+    }
+  },
+  "station_to_route_mapping": {
+    "NS1": "NS_LINE", "NS2": "NS_LINE", "NS3": "NS_LINE", "NS4": "NS_LINE",
+    "NS5": "NS_LINE", "NS6": "NS_LINE", "NS7": "NS_LINE", "NS8": "NS_LINE",
+    "NS9": "NS_LINE", "NS10": "NS_LINE", "NS11": "NS_LINE", "NS12": "NS_LINE",
+    "NS13": "NS_LINE", "NS14": "NS_LINE", "NS15": "NS_LINE", "NS16": "NS_LINE",
+    "NS17": "NS_LINE", "NS18": "NS_LINE", "NS19": "NS_LINE", "NS20": "NS_LINE",
+    "NS21": "NS_LINE", "NS22": "NS_LINE", "NS23": "NS_LINE", "NS24": "NS_LINE",
+    "NS25": "NS_LINE", "NS26": "NS_LINE", "NS27": "NS_LINE", "NS28": "NS_LINE",
+    "EW1": "EW_LINE", "EW2": "EW_LINE", "EW3": "EW_LINE", "EW4": "EW_LINE",
+    "EW5": "EW_LINE", "EW6": "EW_LINE", "EW7": "EW_LINE", "EW8": "EW_LINE",
+    "EW9": "EW_LINE", "EW10": "EW_LINE", "EW11": "EW_LINE", "EW12": "EW_LINE",
+    "EW13": "EW_LINE", "EW14": "EW_LINE", "EW15": "EW_LINE", "EW16": "EW_LINE",
+    "EW17": "EW_LINE", "EW18": "EW_LINE", "EW19": "EW_LINE", "EW20": "EW_LINE",
+    "EW21": "EW_LINE", "EW22": "EW_LINE", "EW23": "EW_LINE", "EW24": "EW_LINE",
+    "EW25": "EW_LINE", "EW26": "EW_LINE", "EW27": "EW_LINE", "EW28": "EW_LINE",
+    "EW29": "EW_LINE", "EW30": "EW_LINE", "EW31": "EW_LINE", "EW32": "EW_LINE",
+    "EW33": "EW_LINE", "CG1": "CG_LINE", "CG2": "CG_LINE",
+    "NE1": "NE_LINE", "NE3": "NE_LINE", "NE4": "NE_LINE", "NE5": "NE_LINE",
+    "NE6": "NE_LINE", "NE7": "NE_LINE", "NE8": "NE_LINE", "NE9": "NE_LINE",
+    "NE10": "NE_LINE", "NE11": "NE_LINE", "NE12": "NE_LINE", "NE13": "NE_LINE",
+    "NE14": "NE_LINE", "NE15": "NE_LINE", "NE16": "NE_LINE", "NE17": "NE_LINE",
+    "BP1": "BP_LINE", "BP2": "BP_LINE", "BP3": "BP_LINE", "BP4": "BP_LINE",
+    "BP5": "BP_LINE", "BP6": "BP_LINE", "BP7": "BP_LINE", "BP8": "BP_LINE",
+    "BP9": "BP_LINE", "BP10": "BP_LINE", "BP11": "BP_LINE", "BP12": "BP_LINE",
+    "BP13": "BP_LINE", "BP14": "BP_LINE"
+  }
+}
