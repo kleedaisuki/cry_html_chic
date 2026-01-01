@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新加坡公共交通时空可视化系统</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="css/lib/leaflet.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/theme-light.css" id="theme-stylesheet">
+</head>
+<body>
+    <!-- 顶部标题栏 -->
+    <header class="app-header">
+        <div class="header-left">
+            <h1 class="app-title">新加坡公共交通客流可视化</h1>
+        </div>
+        <div class="header-right">
+            <button id="theme-toggle" class="icon-btn" title="切换主题">
+                <span class="theme-icon">◑</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 地图容器 -->
+    <div id="map-container"></div>
+
+    <!-- 悬浮详情侧边栏 -->
+    <aside id="sidebar" class="sidebar hidden">
+        <div class="sidebar-header">
+            <h2 id="route-name">线路名称</h2>
+            <button id="sidebar-close" class="close-btn">&times;</button>
+        </div>
+        <div class="sidebar-content">
+            <div class="route-info">
+                <p><strong>类型:</strong> <span id="route-type">-</span></p>
+                <p><strong>起点:</strong> <span id="route-start">-</span></p>
+                <p><strong>终点:</strong> <span id="route-end">-</span></p>
+            </div>
+            <div class="current-flow">
+                <h3>当前客流</h3>
+                <p><strong>客流人数:</strong> <span id="current-flow-value">-</span></p>
+                <p><strong>容量:</strong> <span id="current-capacity">-</span></p>
+                <p><strong>利用率:</strong> <span id="current-utilization">-</span></p>
+            </div>
+            <div class="stations-list">
+                <h3>途径站点</h3>
+                <ul id="stations-ul"></ul>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 悬浮控制面板 -->
+    <div id="control-panel" class="control-panel">
+        <div class="panel-section">
+            <h3>图层控制</h3>
+            <div class="layer-toggles">
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-mrt" checked>
+                    <span class="toggle-label mrt-color">MRT</span>
+                </label>
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-lrt" checked>
+                    <span class="toggle-label lrt-color">LRT</span>
+                </label>
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-bus" checked>
+                    <span class="toggle-label bus-color">Bus</span>
+                </label>
+            </div>
+        </div>
+        <div class="panel-section">
+            <h3>图例</h3>
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="legend-gradient mrt-gradient"></span>
+                    <span class="legend-text">MRT (0-12000)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-gradient lrt-gradient"></span>
+                    <span class="legend-text">LRT (0-3500)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-gradient bus-gradient"></span>
+                    <span class="legend-text">Bus (0-800)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 时间轴容器 -->
+    <div id="timeline-container" class="timeline-container">
+        <div id="timeline-header">
+            <span id="current-time-display">--:--</span>
+        </div>
+        <div id="timeline"></div>
+        <div id="timeline-controls">
+            <button id="play-btn" class="control-btn" title="播放/暂停">
+                <span id="play-icon">▶</span>
+            </button>
+            <button id="stop-btn" class="control-btn" title="停止">
+                <span>■</span>
+            </button>
+            <div class="speed-control">
+                <label for="speed-select">速度:</label>
+                <select id="speed-select">
+                    <option value="0.5">0.5x</option>
+                    <option value="1" selected>1x</option>
+                    <option value="2">2x</option>
+                    <option value="4">4x</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 悬浮提示框 -->
+    <div id="tooltip" class="tooltip hidden">
+        <div class="tooltip-content">
+            <strong id="tooltip-route-name"></strong>
+            <span id="tooltip-flow"></span>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>加载数据中...</p>
+    </div>
+
+    <!-- 第三方库 -->
+    <script src="js/lib/leaflet.js"></script>
+    <script src="js/lib/d3.js"></script>
+    <script src="js/lib/dayjs.js"></script>
+
+    <!-- 应用脚本 -->
+    <script src="js/config.js"></script>
+    <script src="js/utils/helpers.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/map/map.js"></script>
+    <script src="js/map/layers.js"></script>
+    <script src="js/visualization/colorScale.js"></script>
+    <script src="js/visualization/flowRenderer.js"></script>
+    <script src="js/timeline/timeline.js"></script>
+    <script src="js/timeline/player.js"></script>
+    <script src="js/ui/panel.js"></script>
+    <script src="js/ui/sidebar.js"></script>
+    <script src="js/ui/tooltip.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
