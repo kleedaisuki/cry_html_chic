@@ -1,0 +1,307 @@
+/* ==========================================================================
+   深色主题样式表
+   ========================================================================== */
+
+/* 主题变量覆盖 */
+:root {
+    /* 背景色 */
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+
+    /* 文字颜色 */
+    --text-primary: #f5f5f5;
+    --text-secondary: #a0a0a0;
+
+    /* 边框颜色 */
+    --border-color: #333333;
+
+    /* 阴影 */
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+
+    /* 面板背景 */
+    --panel-bg: rgba(30, 30, 30, 0.95);
+
+    /* 强调色 */
+    --accent-color: #4a9eff;
+
+    /* 成功/警告/错误 */
+    --success-color: #4caf50;
+    --warning-color: #ff9800;
+    --error-color: #f44336;
+
+    /* 地图暗色叠加 */
+    --map-overlay: rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================================================
+   深色地图适配
+   ========================================================================== */
+
+/* 使用深色地图底图时 */
+.dark-map {
+    --text-primary: #ffffff;
+    --text-secondary: #adb5bd;
+    --border-color: #495057;
+    --panel-bg: rgba(20, 20, 20, 0.95);
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ==========================================================================
+   交通类型颜色（深色主题 - 更鲜艳）
+   ========================================================================== */
+
+/* MRT - 蓝色系（提高亮度以适应深色背景） */
+.mrt-color {
+    --type-color: #6baed6;
+    --type-color-light: #9ecae1;
+    --type-color-dark: #3182bd;
+}
+
+/* LRT - 绿色系 */
+.lrt-color {
+    --type-color: #74c476;
+    --type-color-light: #a1d99b;
+    --type-color-dark: #31a354;
+}
+
+/* Bus - 橙色系 */
+.bus-color {
+    --type-color: #fdae6b;
+    --type-color-light: #fd8d6c;
+    --type-color-dark: #e6550d;
+}
+
+/* ==========================================================================
+   线路高亮样式（深色主题）
+   ========================================================================== */
+
+.route-line {
+    transition: stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+.route-line:hover {
+    stroke-width: 6 !important;
+    opacity: 1;
+}
+
+.route-line.dimmed {
+    opacity: 0.2;
+}
+
+.route-line.highlighted {
+    opacity: 1;
+    stroke-width: 5 !important;
+}
+
+/* ==========================================================================
+   站点标记样式（深色主题）
+   ========================================================================== */
+
+.station-marker {
+    transition: r 0.2s ease;
+}
+
+.station-marker:hover {
+    r: 10;
+}
+
+/* ==========================================================================
+   时间轴样式（深色主题）
+   ========================================================================== */
+
+#timeline .axis path,
+#timeline .axis line {
+    stroke: var(--border-color);
+}
+
+#timeline .axis text {
+    fill: var(--text-secondary);
+    font-size: 11px;
+}
+
+#timeline .brush .selection {
+    fill: var(--accent-color);
+    fill-opacity: 0.3;
+    stroke: var(--accent-color);
+}
+
+#timeline .handle {
+    fill: var(--accent-color);
+}
+
+/* 当前时间指示线 */
+.current-time-line {
+    stroke: var(--accent-color);
+    stroke-width: 2;
+    stroke-dasharray: 4, 4;
+}
+
+/* 时间轴背景 */
+.timeline-bg {
+    fill: var(--bg-secondary);
+}
+
+/* ==========================================================================
+   侧边栏样式（深色主题）
+   ========================================================================== */
+
+.sidebar {
+    background: #1e1e1e;
+}
+
+.sidebar-header {
+    border-bottom-color: var(--border-color);
+}
+
+.sidebar-content h3 {
+    border-bottom-color: var(--border-color);
+}
+
+.route-info p,
+.current-flow p {
+    color: var(--text-secondary);
+}
+
+.stations-list li {
+    color: var(--text-secondary);
+    border-bottom-color: var(--border-color);
+}
+
+.stations-list li:hover {
+    background: var(--bg-secondary);
+}
+
+/* ==========================================================================
+   播放按钮激活状态（深色主题）
+   ========================================================================== */
+
+.control-btn.active {
+    background: var(--accent-color);
+    color: #121212;
+}
+
+/* ==========================================================================
+   按钮样式（深色主题）
+   ========================================================================== */
+
+.icon-btn {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.icon-btn:hover {
+    background: var(--border-color);
+}
+
+.close-btn {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.close-btn:hover {
+    background: var(--border-color);
+}
+
+/* ==========================================================================
+   下拉选择框样式（深色主题）
+   ========================================================================== */
+
+.speed-control select {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.speed-control select:hover {
+    border-color: var(--accent-color);
+}
+
+.speed-control select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+/* ==========================================================================
+   加载动画（深色主题）
+   ========================================================================== */
+
+.loading-overlay {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.loading-spinner {
+    border-color: rgba(255, 255, 255, 0.2);
+    border-top-color: #ffffff;
+}
+
+/* ==========================================================================
+   Leaflet 控件深色适配
+   ========================================================================== */
+
+.leaflet-control-zoom a {
+    background: var(--panel-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+.leaflet-control-zoom a:hover {
+    background: var(--bg-secondary) !important;
+}
+
+/* ==========================================================================
+   悬浮提示框（深色主题）
+   ========================================================================== */
+
+.tooltip {
+    background: var(--panel-bg);
+    border-color: var(--border-color);
+}
+
+/* ==========================================================================
+   时间轴播放时的脉冲动画
+   ========================================================================== */
+
+.playing .current-time-line {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ==========================================================================
+   线路颜色动画（深色主题）
+   ========================================================================== */
+
+.route-line.color-transition {
+    transition: stroke 0.5s ease;
+}
+
+/* ==========================================================================
+   图层开关样式（深色主题）
+   ========================================================================== */
+
+.toggle-item input[type="checkbox"] {
+    accent-color: var(--accent-color);
+    filter: brightness(1.2);
+}
+
+.toggle-label {
+    opacity: 0.9;
+}
+
+.toggle-label:hover {
+    opacity: 1;
+}
+
+/* ==========================================================================
+   图例渐变（深色主题优化）
+   ========================================================================== */
+
+.legend-gradient {
+    filter: brightness(1.1);
+}

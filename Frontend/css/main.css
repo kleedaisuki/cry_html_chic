@@ -1,0 +1,590 @@
+/* ==========================================================================
+   新加坡公共交通可视化系统 - 主样式文件
+   ========================================================================== */
+
+/* CSS 变量定义（依赖主题文件覆盖） */
+:root {
+    /* 基础布局 */
+    --header-height: 60px;
+    --timeline-height: 120px;
+    --sidebar-width: 320px;
+    --panel-width: 280px;
+    --panel-padding: 16px;
+    --border-radius: 8px;
+
+    /* 图层颜色 */
+    --mrt-color: #3182bd;
+    --lrt-color: #31a354;
+    --bus-color: #e6550d;
+
+    /* 过渡动画 */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+}
+
+/* ==========================================================================
+   基础重置
+   ========================================================================== */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* ==========================================================================
+   顶部标题栏
+   ========================================================================== */
+
+.app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000;
+    background: var(--panel-bg);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.app-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: var(--border-radius);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: background var(--transition-fast);
+}
+
+.icon-btn:hover {
+    background: var(--border-color);
+}
+
+/* ==========================================================================
+   地图容器
+   ========================================================================== */
+
+#map-container {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+}
+
+#map-container .leaflet-container {
+    width: 100%;
+    height: 100%;
+}
+
+/* Leaflet 控件样式 */
+.leaflet-control-zoom {
+    border: none !important;
+    box-shadow: var(--shadow) !important;
+}
+
+.leaflet-control-zoom a {
+    background: var(--panel-bg) !important;
+    color: var(--text-primary) !important;
+    border: none !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+}
+
+.leaflet-control-zoom a:hover {
+    background: var(--bg-secondary) !important;
+}
+
+/* ==========================================================================
+   悬浮详情侧边栏
+   ========================================================================== */
+
+.sidebar {
+    position: fixed;
+    top: calc(var(--header-height) + 20px);
+    right: 20px;
+    width: var(--sidebar-width);
+    max-height: calc(100vh - var(--header-height) - 40px);
+    background: var(--panel-bg);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform var(--transition-normal), opacity var(--transition-normal);
+}
+
+.sidebar.hidden {
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.close-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 20px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.close-btn:hover {
+    background: var(--border-color);
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.sidebar-content h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.route-info p,
+.current-flow p {
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.route-info strong,
+.current-flow strong {
+    color: var(--text-primary);
+}
+
+.stations-list ul {
+    list-style: none;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.stations-list li {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.stations-list li:last-child {
+    border-bottom: none;
+}
+
+/* ==========================================================================
+   悬浮控制面板
+   ========================================================================== */
+
+.control-panel {
+    position: fixed;
+    top: calc(var(--header-height) + 20px);
+    left: 20px;
+    width: var(--panel-width);
+    background: var(--panel-bg);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    z-index: 1000;
+    padding: var(--panel-padding);
+}
+
+.panel-section {
+    margin-bottom: 16px;
+}
+
+.panel-section:last-child {
+    margin-bottom: 0;
+}
+
+.panel-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 图层控制开关 */
+.layer-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.toggle-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--mrt-color);
+}
+
+.toggle-label {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    color: white;
+}
+
+.toggle-label.mrt-color {
+    background: var(--mrt-color);
+}
+
+.toggle-label.lrt-color {
+    background: var(--lrt-color);
+}
+
+.toggle-label.bus-color {
+    background: var(--bus-color);
+}
+
+/* 图例 */
+.legend {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.legend-gradient {
+    width: 80px;
+    height: 12px;
+    border-radius: 4px;
+}
+
+.mrt-gradient {
+    background: linear-gradient(to right, #deebf7, #08519c);
+}
+
+.lrt-gradient {
+    background: linear-gradient(to right, #e5f5e0, #006d2c);
+}
+
+.bus-gradient {
+    background: linear-gradient(to right, #fee5d9, #a50f15);
+}
+
+.legend-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   时间轴容器
+   ========================================================================== */
+
+.timeline-container {
+    position: fixed;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    height: var(--timeline-height);
+    background: var(--panel-bg);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+}
+
+#timeline-header {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+#current-time-display {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+#timeline {
+    flex: 1;
+    min-height: 40px;
+    cursor: pointer;
+}
+
+#timeline svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* 时间轴控件 */
+#timeline-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+.control-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background var(--transition-fast);
+}
+
+.control-btn:hover {
+    background: var(--border-color);
+}
+
+.control-btn.active {
+    background: var(--mrt-color);
+    color: white;
+}
+
+.speed-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.speed-control label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.speed-control select {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   悬浮提示框
+   ========================================================================== */
+
+.tooltip {
+    position: fixed;
+    padding: 10px 14px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    z-index: 2000;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+}
+
+.tooltip.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.tooltip-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tooltip-content strong {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.tooltip-content span {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   加载遮罩
+   ========================================================================== */
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+}
+
+.loading-overlay.hidden {
+    display: none;
+}
+
+.loading-overlay p {
+    margin-top: 16px;
+    color: white;
+    font-size: 14px;
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   实用工具类
+   ========================================================================== */
+
+.hidden {
+    display: none !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.mt-1 { margin-top: 4px; }
+.mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
+.mt-4 { margin-top: 16px; }
+
+.mb-1 { margin-bottom: 4px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-3 { margin-bottom: 12px; }
+.mb-4 { margin-bottom: 16px; }
+
+/* ==========================================================================
+   响应式适配
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 280px;
+        --panel-width: 240px;
+        --panel-padding: 12px;
+    }
+
+    .app-title {
+        font-size: 14px;
+    }
+
+    .control-panel {
+        top: calc(var(--header-height) + 10px);
+        left: 10px;
+    }
+
+    .sidebar {
+        top: calc(var(--header-height) + 10px);
+        right: 10px;
+        width: calc(100% - 20px);
+        max-height: 50vh;
+    }
+
+    .timeline-container {
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        height: 100px;
+    }
+}
