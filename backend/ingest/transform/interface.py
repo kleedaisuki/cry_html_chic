@@ -20,11 +20,10 @@ from typing import (
     Dict,
     Mapping,
     Optional,
-    Protocol,
     Sequence,
     Literal,
-    runtime_checkable,
 )
+from abc import ABC, abstractmethod
 
 # ============================================================
 # JSON-compatible value types
@@ -115,8 +114,7 @@ class JsTargetSpec:
 # Stage interfaces
 # ============================================================
 
-@runtime_checkable
-class FrontendCompiler(Protocol):
+class FrontendCompiler(ABC):
     """
     @brief Front-end：Raw -> IRModule
     """
@@ -125,6 +123,7 @@ class FrontendCompiler(Protocol):
     version: str
     supported_content_types: Optional[Sequence[str]]
 
+    @abstractmethod
     def compile(
         self,
         record: RawRecord,
@@ -137,8 +136,7 @@ class FrontendCompiler(Protocol):
         ...
 
 
-@runtime_checkable
-class Optimizer(Protocol):
+class Optimizer(ABC):
     """
     @brief Optimizer：IRModule -> IRModule（纯 IR 变换）
     """
@@ -146,6 +144,7 @@ class Optimizer(Protocol):
     name: str
     version: str
 
+    @abstractmethod
     def optimize(
         self,
         module: IRModule,
@@ -158,8 +157,7 @@ class Optimizer(Protocol):
         ...
 
 
-@runtime_checkable
-class BackendCompiler(Protocol):
+class BackendCompiler(ABC):
     """
     @brief Back-end：IRModule -> JS artifacts (path -> bytes)
     """
@@ -167,6 +165,7 @@ class BackendCompiler(Protocol):
     name: str
     version: str
 
+    @abstractmethod
     def emit(
         self,
         module: IRModule,

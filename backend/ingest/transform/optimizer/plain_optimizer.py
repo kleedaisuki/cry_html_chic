@@ -21,13 +21,13 @@ from typing import Mapping
 
 from ingest.utils.logger import get_logger
 from ingest.wiring import register_optimizer
-from ingest.transform.interface import IRModule, JsonValue
+from ingest.transform.interface import IRModule, JsonValue, Optimizer
 
 _LOG = get_logger(__name__)
 
 
 @register_optimizer("plain")
-class PlainOptimizer:
+class PlainOptimizer(Optimizer):
     """
     /**
      * @brief 空优化器（No-op Optimizer）：输入 IRModule 原样输出。
