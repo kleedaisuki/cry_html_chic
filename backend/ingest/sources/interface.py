@@ -6,10 +6,10 @@ from typing import (
     Dict,
     Iterable,
     Mapping,
-    Protocol,
     Sequence,
     Union,
 )
+from abc import ABC, abstractmethod
 
 
 JsonValue = Union[
@@ -32,13 +32,14 @@ class RawArtifact:
     meta: Dict[str, str]
 
 
-class DataSource(Protocol):
+class DataSource(ABC):
     """
     @brief 数据源纯接口（只定义行为契约，不规定实现结构）
            Pure data source interface (behavior contract only; no implementation structure).
     """
 
     @classmethod
+    @abstractmethod
     def name(cls) -> str:
         """
         @brief 数据源稳定名称（用于 registry key）/ Stable source name (registry key).
@@ -46,12 +47,14 @@ class DataSource(Protocol):
         ...
 
     @classmethod
+    @abstractmethod
     def describe(cls) -> Dict[str, str]:
         """
         @brief 数据源静态描述（用于 meta.json 的 provenance）/ Static description for provenance in meta.json.
         """
         ...
 
+    @abstractmethod
     def validate(self, config: Mapping[str, Any]) -> None:
         """
         @brief 校验配置（失败抛异常）/ Validate config (raise on failure).
@@ -59,6 +62,7 @@ class DataSource(Protocol):
         """
         ...
 
+    @abstractmethod
     def fetch(self, config: Mapping[str, Any]) -> Iterable[RawArtifact]:
         """
         @brief 拉取数据并产出 RawArtifact 流 / Fetch data and yield a stream of RawArtifact.

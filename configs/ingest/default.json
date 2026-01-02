@@ -40,7 +40,7 @@
     "plugins": [
         "ingest.sources.datamall",
         "ingest.cache.raw",
-        "ingest.cache.preprocessed",
+        "ingest.cache.preprocess",
         "ingest.transform.front.json_payload",
         "ingest.transform.optimizer.plain_optimizer",
         "ingest.transform.output.js_constants"
