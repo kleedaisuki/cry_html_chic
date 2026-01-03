@@ -53,7 +53,7 @@
                 "name": "datamall",
                 "config": {
                     "dataset": "BusStops",
-                    "account_key": "your_api_key"
+                    "account_key": "你的LTA_API_KEY"
                 }
             },
             "transform": {

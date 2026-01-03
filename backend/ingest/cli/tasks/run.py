@@ -135,18 +135,20 @@ class RunJobTask(Task):
             from ... import wiring
 
             # -------- source --------
+            # V2：source 封装 config；validate()/fetch() 不再注入 config
             source_cls = wiring.SOURCES.require(self.job.source.name)
             source = source_cls(**self.job.source.config)
 
-            source.validate(self.job.source.config)
+            source.validate()
 
             # -------- fetch & cache raw --------
+            # V2：source.fetch() 直接产出 RawCacheRecord（payload + meta），cache 对齐
             raw_cache = self._transformer.raw_cache  # type: ignore
 
             keys: list[CacheKey] = []
 
-            for raw in source.fetch(self.job.source.config):
-                key = raw_cache.save(raw, config_name=self.loaded.config.profile)
+            for record in source.fetch():
+                key = raw_cache.save(record, config_name=self.loaded.config.profile)
                 keys.append(key)
 
             self._diagnostics.data["raw_items"] = len(keys)
@@ -174,7 +176,9 @@ class RunJobTask(Task):
                 message=str(e),
                 traceback=traceback.format_exc(),
             )
-            _LOG.error("task[%s] failed: %s\n%s", self.job.name, e, traceback.format_exc())
+            _LOG.error(
+                "task[%s] failed: %s\n%s", self.job.name, e, traceback.format_exc()
+            )
             raise
 
     def close(self) -> None:
