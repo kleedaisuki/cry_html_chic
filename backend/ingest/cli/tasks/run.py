@@ -18,8 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from ...utils.logger import get_logger
-from ..configs import LoadedConfig, JobConfig
+from ingest.utils.logger import get_logger
+from ingest.cli.configs import LoadedConfig, JobConfig
 from .interface import (
     Task,
     TaskState,
@@ -28,9 +28,11 @@ from .interface import (
     Diagnostics,
 )
 
-from ...cache.interface import CacheKey
-from ...transform.interface import TransformerSpec, JsTargetSpec
-from ...transform.transformer import Transformer
+from ingest.cache.interface import CacheKey
+from ingest.transform.interface import TransformerSpec, JsTargetSpec
+from ingest.transform.transformer import Transformer
+
+from ingest.cache.hashlib import make_cache_key
 
 _LOG = get_logger(__name__)
 
@@ -76,7 +78,7 @@ class RunJobTask(Task):
         paths = self.loaded.paths
 
         # 延迟 import：避免 import-time 副作用
-        from ... import wiring
+        from ingest import wiring
 
         # -------- caches --------
         raw_cache_cls = wiring.RAW_CACHES.require(cfg.cache_configs.raw.name)
@@ -132,7 +134,7 @@ class RunJobTask(Task):
         _LOG.info("task[%s] run start", self.job.name)
 
         try:
-            from ... import wiring
+            from ingest import wiring
 
             # -------- source --------
             # V2：source 封装 config；validate()/fetch() 不再注入 config
@@ -148,8 +150,11 @@ class RunJobTask(Task):
             keys: list[CacheKey] = []
 
             for record in source.fetch():
-                key = raw_cache.save(record, config_name=self.loaded.config.profile)
-                keys.append(key)
+                key = make_cache_key(
+                    config_name=self.loaded.config.profile,
+                    record=record,
+                )
+            raw_cache.save(key, record)
 
             self._diagnostics.data["raw_items"] = len(keys)
 

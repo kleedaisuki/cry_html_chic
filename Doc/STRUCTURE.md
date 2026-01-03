@@ -103,9 +103,10 @@ cry_html_chic/
 │       │   └── datamall.py             # HTTP 获取：datamall
 │       │
 │       ├── cache/
-│       │   ├── interface.py              # 统一向外暴露    
-│       │   ├── raw.py                    # 缓存网络 IO 获取的数据       
-│       │   └── preprocessed.py           # 缓存成品数据
+│       │   ├── interface.py                # 统一向外暴露    
+│       │   ├── hashlib.py                  # 计算 CacheKey 的 hash    
+│       │   ├── raw.py                      # 缓存网络 IO 获取的数据       
+│       │   └── preprocessed.py             # 缓存成品数据
 │       │
 │       ├── transform/
 │       │   ├── interface.py                # 算子接口，通过继承定义新的算子
