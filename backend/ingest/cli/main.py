@@ -167,11 +167,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     # 覆盖 fail_fast（CLI > config）
     execution = loaded.config.execution
     if args.fail_fast:
-        from dataclasses import replace
-        execution = replace(execution, fail_fast=True)
+        loaded.config.execution.fail_fast = True
     if args.no_fail_fast:
-        from dataclasses import replace
-        execution = replace(execution, fail_fast=False)
+        loaded.config.execution.fail_fast = False
 
     ensure_plugins_loaded(loaded)
 
@@ -200,7 +198,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             import traceback as tb
             logger.error(tb.format_exc())
 
-            if fail_fast:
+            if loaded.config.execution.fail_fast:
                 break
         finally:
             try:
