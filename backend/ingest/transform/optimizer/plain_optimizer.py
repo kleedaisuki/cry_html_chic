@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from typing import Mapping
 
-from ...utils.logger import get_logger
-from ...wiring import register_optimizer
-from ..interface import IRModule, JsonValue, Optimizer
+from ingest.utils.logger import get_logger
+from ingest.wiring import register_optimizer
+from ingest.transform.interface import IRModule, JsonValue, Optimizer
 
 _LOG = get_logger(__name__)
 
