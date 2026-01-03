@@ -87,7 +87,7 @@ class RunJobTask(Task):
         )
 
         raw_cache = raw_cache_cls(**cfg.cache_configs.raw.config)
-        pre_cache = pre_cache_cls(**cfg.cache_configs.raw.config)
+        pre_cache = pre_cache_cls(**cfg.cache_configs.preprocessed.config)
 
         # -------- transformer spec --------
         tcfg = cfg.transform_configs
@@ -154,7 +154,8 @@ class RunJobTask(Task):
                     config_name=self.loaded.config.profile,
                     record=record,
                 )
-            raw_cache.save(key, record)
+                raw_cache.save(key, record)
+                keys.append(key)
 
             self._diagnostics.data["raw_items"] = len(keys)
 

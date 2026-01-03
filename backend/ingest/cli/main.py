@@ -174,8 +174,6 @@ def cmd_run(args: argparse.Namespace) -> int:
     ensure_plugins_loaded(loaded)
 
     jobs = loaded.config.jobs
-    # 使用覆盖后的 execution
-    fail_fast = execution.fail_fast
     if args.jobs:
         jobs = [j for j in jobs if j.name in args.jobs]
 
