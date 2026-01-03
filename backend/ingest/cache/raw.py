@@ -32,6 +32,7 @@ from .interface import (
     RawCacheMeta,
     RawCacheRecord,
 )
+from ingest.wiring import register_raw_cache
 
 _LOG = get_logger(__name__)
 
@@ -126,6 +127,7 @@ def _write_json_atomic(path: Path, obj: Dict[str, object]) -> None:
 # ============================================================
 
 
+@register_raw_cache("fs_raw")
 class FileSystemRawCache(RawCache):
     """
     /**

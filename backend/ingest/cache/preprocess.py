@@ -19,7 +19,7 @@ import os
 import secrets
 import shutil
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Iterable, Iterator, Mapping, Optional, Sequence
 
 from ingest.utils.logger import get_logger
 from .interface import (
@@ -31,6 +31,7 @@ from .interface import (
     PreprocessedCache,
     PreprocessedCacheMeta,
 )
+from ingest.wiring import register_preprocessed_cache
 
 _LOG = get_logger(__name__)
 
@@ -160,6 +161,7 @@ def _ensure_parent_dir(path: Path) -> None:
 # ============================================================
 
 
+@register_preprocessed_cache("fs_preprocessed")
 class FileSystemPreprocessedCache(PreprocessedCache):
     """
     /**
@@ -218,9 +220,13 @@ class FileSystemPreprocessedCache(PreprocessedCache):
         meta_path = run_dir / self._META_FILE
         manifest_path = run_dir / self._MANIFEST_FILE
         artifacts_dir = run_dir / self._ARTIFACTS_DIR
-        return meta_path.is_file() and manifest_path.is_file() and artifacts_dir.is_dir()
+        return (
+            meta_path.is_file() and manifest_path.is_file() and artifacts_dir.is_dir()
+        )
 
-    def save(self, key: CacheKey, artifacts: Mapping[str, bytes], meta: PreprocessedCacheMeta) -> None:
+    def save(
+        self, key: CacheKey, artifacts: Mapping[str, bytes], meta: PreprocessedCacheMeta
+    ) -> None:
         """
         /**
          * @brief 保存 preprocessed 缓存（多文件 + meta）/ Save preprocessed cache (artifacts + meta).
@@ -264,7 +270,9 @@ class FileSystemPreprocessedCache(PreprocessedCache):
                 raise CorruptedCache(f"invalid artifact name: {name!r}")
 
         # tmp 目录
-        tmp_dir = self._base_dir / (final_dir.name + f".tmp-{os.getpid()}-{secrets.token_hex(8)}")
+        tmp_dir = self._base_dir / (
+            final_dir.name + f".tmp-{os.getpid()}-{secrets.token_hex(8)}"
+        )
         tmp_dir.mkdir(parents=True, exist_ok=False)
 
         try:
@@ -337,7 +345,9 @@ class FileSystemPreprocessedCache(PreprocessedCache):
         except CorruptedCache:
             raise
         except Exception as e:
-            raise CorruptedCache(f"failed to save preprocessed cache into {final_dir}: {e}") from e
+            raise CorruptedCache(
+                f"failed to save preprocessed cache into {final_dir}: {e}"
+            ) from e
         finally:
             if tmp_dir.exists():
                 try:
@@ -373,8 +383,12 @@ class FileSystemPreprocessedCache(PreprocessedCache):
                 raise CorruptedCache(f"invalid manifest field: {manifest_path}")
 
             files = mani.get("files")
-            if not isinstance(files, list) or not all(isinstance(x, str) for x in files):
-                raise CorruptedCache(f"manifest.files must be list[str]: {manifest_path}")
+            if not isinstance(files, list) or not all(
+                isinstance(x, str) for x in files
+            ):
+                raise CorruptedCache(
+                    f"manifest.files must be list[str]: {manifest_path}"
+                )
 
             # 安全性：所有文件名必须安全
             for name in files:
@@ -386,7 +400,9 @@ class FileSystemPreprocessedCache(PreprocessedCache):
         except CorruptedCache:
             raise
         except Exception as e:
-            raise CorruptedCache(f"invalid manifest schema: {manifest_path} ({e})") from e
+            raise CorruptedCache(
+                f"invalid manifest schema: {manifest_path} ({e})"
+            ) from e
 
     def load_artifact(self, key: CacheKey, name: str) -> bytes:
         """
@@ -426,7 +442,9 @@ class FileSystemPreprocessedCache(PreprocessedCache):
         algo = checksum.get("algo")
         hex_digest = checksum.get("hex")
         if algo != "sha256" or not isinstance(hex_digest, str):
-            raise CorruptedCache(f"invalid checksum for artifact {name}: {manifest_path}")
+            raise CorruptedCache(
+                f"invalid checksum for artifact {name}: {manifest_path}"
+            )
 
         fpath = artifacts_root / name
         if not fpath.is_file():
@@ -526,7 +544,11 @@ class FileSystemPreprocessedCache(PreprocessedCache):
             meta_path = p / self._META_FILE
             manifest_path = p / self._MANIFEST_FILE
             artifacts_root = p / self._ARTIFACTS_DIR
-            if not meta_path.is_file() or not manifest_path.is_file() or not artifacts_root.is_dir():
+            if (
+                not meta_path.is_file()
+                or not manifest_path.is_file()
+                or not artifacts_root.is_dir()
+            ):
                 continue
 
             try:
@@ -540,7 +562,11 @@ class FileSystemPreprocessedCache(PreprocessedCache):
                 hsh = key_obj.get("content_hash")
                 built = pp_obj.get("built_at_iso")
 
-                if not isinstance(cfg, str) or not isinstance(hsh, str) or not isinstance(built, str):
+                if (
+                    not isinstance(cfg, str)
+                    or not isinstance(hsh, str)
+                    or not isinstance(built, str)
+                ):
                     continue
 
                 if config_name is not None and cfg != config_name:
@@ -552,7 +578,9 @@ class FileSystemPreprocessedCache(PreprocessedCache):
                 _LOG.warning("skip corrupted preprocessed cache dir: %s", str(p))
                 continue
 
-    def _run_dir_from_parts(self, *, config_name: str, content_hash: str, built_at_iso: str) -> Path:
+    def _run_dir_from_parts(
+        self, *, config_name: str, content_hash: str, built_at_iso: str
+    ) -> Path:
         safe_ts = _safe_ts_for_path(built_at_iso)
         dirname = f"{safe_ts}-{config_name}-{content_hash}"
         return self._base_dir / dirname
@@ -584,9 +612,15 @@ class FileSystemPreprocessedCache(PreprocessedCache):
             raise CacheMiss("preprocessed cache base dir does not exist")
 
         suffix = f"-{key.config_name}-{key.content_hash}"
-        candidates = [p for p in self._base_dir.iterdir() if p.is_dir() and p.name.endswith(suffix)]
+        candidates = [
+            p
+            for p in self._base_dir.iterdir()
+            if p.is_dir() and p.name.endswith(suffix)
+        ]
         if not candidates:
-            raise CacheMiss(f"preprocessed cache not found for config={key.config_name} hash={key.content_hash}")
+            raise CacheMiss(
+                f"preprocessed cache not found for config={key.config_name} hash={key.content_hash}"
+            )
         if len(candidates) == 1:
             return candidates[0]
 
@@ -617,7 +651,9 @@ class FileSystemPreprocessedCache(PreprocessedCache):
         if isinstance(v, list):
             return all(self._is_json_value(x) for x in v)
         if isinstance(v, dict):
-            return all(isinstance(k, str) and self._is_json_value(val) for k, val in v.items())
+            return all(
+                isinstance(k, str) and self._is_json_value(val) for k, val in v.items()
+            )
         return False
 
 

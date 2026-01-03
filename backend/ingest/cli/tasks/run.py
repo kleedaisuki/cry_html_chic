@@ -84,8 +84,13 @@ class RunJobTask(Task):
             cfg.cache_configs.preprocessed.name
         )
 
+<<<<<<< HEAD
         raw_cache = raw_cache_cls(base_dir=paths.raw_root)
         pre_cache = pre_cache_cls(base_dir=paths.preprocessed_root)
+=======
+        raw_cache = raw_cache_cls(base_dir=cfg.cache_configs.raw.config["root"])
+        pre_cache = pre_cache_cls(base_dir=cfg.cache_configs.raw.config["root"])
+>>>>>>> e29b795 (fix: 修复缓存系统的初始化问题)
 
         # -------- transformer spec --------
         tcfg = cfg.transform_configs
