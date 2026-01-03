@@ -53,7 +53,7 @@
                 "name": "datamall",
                 "config": {
                     "dataset": "BusStops",
-                    "account_key": "你的LTA_API_KEY"
+                    "account_key": "your_api_key"
                 }
             },
             "transform": {
@@ -64,45 +64,6 @@
                 "optimizer": {
                     "name": "plain",
                     "config": {}
-                },
-                "backend": {
-                    "name": "js_constants",
-                    "config": {}
-                }
-            }
-        },
-        {
-            "name": "datamall_passenger_flow",
-            "source": {
-                "name": "datamall",
-                "config": {
-                    "dataset": "PassengerVolumeByOriginDestinationTrain",
-                    "account_key": "你的LTA_API_KEY"
-                }
-            },
-            "transform": {
-                "frontend": {
-                    "name": "json_payload",
-                    "config": {
-                        "extract_key": "value"
-                    }
-                },
-                "optimizer": {
-                    "name": "data_cleaning",
-                    "config": {
-                        "drop_missing_rows": true,
-                        "aggregate_by_hour": true,
-                        "time_field": "timestamp",
-                        "value_field": "flow",
-                        "group_by": [
-                            "route_id"
-                        ],
-                        "routes_config_path": "configs/routes.json",
-                        "output_format": "frontend_api",
-                        "route_id_field": "route_id",
-                        "capacity_field": "capacity",
-                        "transport_type_field": "type"
-                    }
                 },
                 "backend": {
                     "name": "js_constants",
