@@ -246,14 +246,6 @@ class FileSystemPreprocessedCache(PreprocessedCache):
         if not meta.built_at_iso:
             raise ValueError("PreprocessedCacheMeta.built_at_iso is empty")
 
-        # preprocessed 依赖 built_at_iso 作为 run 时间戳（key.fetched_at_iso 也复用这个字段以统一定位）
-        # 约束：若 key.fetched_at_iso 给了，必须与 meta.built_at_iso 一致，否则拒绝（防止“写错目录”）
-        if key.fetched_at_iso is not None and key.fetched_at_iso != meta.built_at_iso:
-            raise ValueError(
-                "CacheKey.fetched_at_iso must match PreprocessedCacheMeta.built_at_iso "
-                f"(key={key.fetched_at_iso}, built={meta.built_at_iso})"
-            )
-
         # 目录名时间戳采用 built_at_iso（路径安全化）
         final_dir = self._run_dir_from_parts(
             config_name=key.config_name,
