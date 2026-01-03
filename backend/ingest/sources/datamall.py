@@ -24,7 +24,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional
 import requests
 
 from ingest.wiring import register_source
-from ingest.sources.new_interface import (
+from ingest.sources.interface import (
     DataSource,
     make_raw_cache_meta,
     make_raw_cache_record,
