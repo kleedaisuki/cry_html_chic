@@ -1,7 +1,7 @@
 {
     "version": 1,
     "profile": "default",
-    "log_level": "INFO",
+    "log_level": "DEBUG",
     "paths": {
         "configs_root": "configs/ingest",
         "data_root": "data",
