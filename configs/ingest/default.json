@@ -17,13 +17,13 @@
         "raw": {
             "name": "fs_raw",
             "config": {
-                "root": "data/raw"
+                "base_dir": "data/raw"
             }
         },
         "preprocessed": {
             "name": "fs_preprocessed",
             "config": {
-                "root": "data/preprocessed"
+                "base_dir": "data/preprocessed"
             }
         }
     },
@@ -53,7 +53,7 @@
                 "name": "datamall",
                 "config": {
                     "dataset": "BusStops",
-                    "account_key": "你的LTA_API_KEY"
+                    "account_key": "your_api_key"
                 }
             },
             "transform": {
@@ -94,7 +94,9 @@
                         "aggregate_by_hour": true,
                         "time_field": "timestamp",
                         "value_field": "flow",
-                        "group_by": ["route_id"],
+                        "group_by": [
+                            "route_id"
+                        ],
                         "routes_config_path": "configs/routes.json",
                         "output_format": "frontend_api",
                         "route_id_field": "route_id",
