@@ -27,7 +27,7 @@ from .sources.interface import DataSource
 #: Registry for all DataSource implementations.
 #: 所有 DataSource 实现的注册表。
 SOURCES: Registry = Registry(
-    "sources",
+    namespace="sources",
     base=DataSource,
 )
 
@@ -45,7 +45,7 @@ from .cache.interface import PreprocessedCache, RawCache
 #: Registry for all RawCache implementations.
 #: 所有 RawCache 实现的注册表。
 RAW_CACHES: Registry = Registry(
-    "raw_caches",
+    namespace="raw_caches",
     base=RawCache,
 )
 
@@ -56,7 +56,7 @@ register_raw_cache = RAW_CACHES.register
 #: Registry for all PreprocessedCache implementations.
 #: 所有 PreprocessedCache 实现的注册表。
 PREPROCESSED_CACHES: Registry = Registry(
-    "preprocessed_caches",
+    namespace="preprocessed_caches",
     base=PreprocessedCache,
 )
 
@@ -74,7 +74,7 @@ from .transform.interface import BackendCompiler, FrontendCompiler, Optimizer
 #: Registry for all FrontendCompiler implementations.
 #: 所有 FrontendCompiler 实现的注册表。
 FRONTENDS: Registry = Registry(
-    "frontends",
+    namespace="frontends",
     base=FrontendCompiler,
 )
 
@@ -85,7 +85,7 @@ register_frontend = FRONTENDS.register
 #: Registry for all Optimizer implementations.
 #: 所有 Optimizer 实现的注册表。
 OPTIMIZERS: Registry = Registry(
-    "optimizers",
+    namespace="optimizers",
     base=Optimizer,
 )
 
@@ -96,7 +96,7 @@ register_optimizer = OPTIMIZERS.register
 #: Registry for all BackendCompiler implementations.
 #: 所有 BackendCompiler 实现的注册表。
 BACKENDS: Registry = Registry(
-    "backends",
+    namespace="backends",
     base=BackendCompiler,
 )
 

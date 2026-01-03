@@ -25,6 +25,7 @@ from typing import Any, Mapping, MutableMapping, Optional
 # Exceptions / 异常
 # ============================================================
 
+
 class ConfigError(ValueError):
     """Generic config parsing error."""
 
@@ -140,6 +141,7 @@ class LoadedConfig:
 # Public API
 # ============================================================
 
+
 def load_config_by_name(
     config_name: str,
     *,
@@ -178,7 +180,9 @@ def parse_ingest_config(obj: Mapping[str, Any]) -> IngestConfig:
     paths = _parse_paths(_require_mapping(obj, "paths"))
     execution = _parse_execution(_require_mapping(obj, "execution"))
     cache_cfgs = _parse_cache_configs(_require_mapping(obj, "cache_configs"))
-    transform_cfgs = _parse_transform_configs(_require_mapping(obj, "transform_configs"))
+    transform_cfgs = _parse_transform_configs(
+        _require_mapping(obj, "transform_configs")
+    )
     plugins = _parse_plugins(_require_list(obj, "plugins"))
     jobs = _parse_jobs(_require_list(obj, "jobs"))
 
@@ -209,9 +213,33 @@ def resolve_paths(paths: PathsConfig, *, project_root: Path) -> ResolvedPaths:
     )
 
 
+def find_project_root_by_pyproject(start_dir: Path) -> Path:
+    """
+    /**
+     * @brief 向上查找 pyproject.toml 以确定项目根目录（project root）。
+     *        Walk upwards to find pyproject.toml to determine the project root.
+     *
+     * @param start_dir 起始目录（通常是当前工作目录 CWD）。
+     *                  Start directory (usually current working directory).
+     * @return 解析后的项目根目录；若未找到则返回 start_dir.resolve()。
+     *         Resolved project root; falls back to start_dir.resolve() if not found.
+     *
+     * @note 这是显式约定：我们不“猜”根目录，只用 pyproject.toml 作为锚点（anchor）。
+     *       Explicit convention: no guessing; only pyproject.toml is used as an anchor.
+     */
+    """
+    cur = start_dir.resolve()
+    # 依次检查：当前目录 + 所有父目录
+    for p in (cur, *cur.parents):
+        if (p / "pyproject.toml").is_file():
+            return p
+    return cur
+
+
 # ============================================================
 # Parsing helpers
 # ============================================================
+
 
 def _read_json(path: Path) -> Any:
     try:
@@ -329,6 +357,7 @@ def _parse_impl_config(m: Mapping[str, Any]) -> ImplConfig:
 # Validation
 # ============================================================
 
+
 def _validate_execution(exe: ExecutionConfig) -> None:
     if exe.parallelism <= 0:
         raise ConfigSchemaError("execution.parallelism must be > 0")
@@ -357,6 +386,7 @@ def _check_paths_consistency(paths: PathsConfig) -> None:
 # ============================================================
 # Primitive getters
 # ============================================================
+
 
 def _require_mapping(m: Mapping[str, Any], key: str) -> Mapping[str, Any]:
     if key not in m or not isinstance(m[key], Mapping):

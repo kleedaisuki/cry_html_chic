@@ -53,10 +53,15 @@ import traceback
 # import os
 from pathlib import Path
 from typing import List, Optional
+from pathlib import Path
 
 from ingest.utils.logger import get_logger
 from ingest.cli.bootstrap import bootstrap
-from ingest.cli.configs import load_config_by_name, LoadedConfig
+from ingest.cli.configs import (
+    load_config_by_name,
+    LoadedConfig,
+    find_project_root_by_pyproject,
+)
 from ingest.cli.runtime import ensure_plugins_loaded
 from ingest.cli.tasks.run import RunJobTask
 from ingest.cli.tasks.interface import Task
@@ -151,10 +156,11 @@ def cmd_run(args: argparse.Namespace) -> int:
     """
     @brief 运行配置中的 job / Run jobs defined in config.
     """
+    project_root = find_project_root_by_pyproject(Path.cwd())
     loaded: LoadedConfig = load_config_by_name(
         args.config_name,
-        project_root = Path.cwd()
-        )
+        project_root=project_root,
+    )
 
     # 覆盖 fail_fast（CLI > config）
     execution = loaded.config.execution
@@ -216,7 +222,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     """
     @brief 仅做启动与注册表自检 / Preflight check only.
     """
-    loaded: LoadedConfig = load_config_by_name(args.config_name)
+    project_root = find_project_root_by_pyproject(Path.cwd())
+    loaded: LoadedConfig = load_config_by_name(
+        args.config_name,
+        project_root=project_root,
+    )
     ensure_plugins_loaded(loaded)
 
     def dump_registry(name: str, reg) -> None:
