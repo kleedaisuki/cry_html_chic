@@ -73,6 +73,7 @@ from ingest.wiring import (
     OPTIMIZERS,
     BACKENDS,
 )
+from ingest.utils.logger import set_log_level
 
 logger = get_logger(__name__)
 
@@ -161,6 +162,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         args.config_name,
         project_root=project_root,
     )
+    set_log_level(getattr(loaded.config, "log_level", "INFO"))
 
     # 覆盖 fail_fast（CLI > config）
     execution = loaded.config.execution
@@ -227,6 +229,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         args.config_name,
         project_root=project_root,
     )
+    set_log_level(getattr(loaded.config, "log_level", "INFO"))
     ensure_plugins_loaded(loaded)
 
     def dump_registry(name: str, reg) -> None:
