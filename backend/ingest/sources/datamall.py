@@ -1,126 +1,71 @@
 """
 /**
  * @file datamall.py
- * @brief DataMall 数据源实现 / DataMall data source implementation.
+ * @brief DataMall V2 数据源实现 / DataMall V2 data source implementation.
  *
- * 本模块封装 Singapore DataMall API 访问逻辑。
- * 设计原则：
- * - DataMallSource 实例 = 一个绑定 dataset 的数据源（request-bound）
- * - 构造函数吃下完整 config（account + dataset + params + mode）
- * - validate / fetch 不再依赖外部注入 cfg，仅保留参数以兼容公共接口
+ * 本模块封装 Singapore LTA DataMall API 的访问逻辑，并对齐新版 V2 DataSource 接口：
+ * - config 封装在构造函数（kwargs）中
+ * - fetch() 无参，直接 yield RawCacheRecord（payload=bytes, meta=RawCacheMeta）
+ *
+ * 设计原则 / Principles:
+ * - A1: 基类只做接口，不做框架（Source 自己处理分页/重试/限速） / Base defines interface only.
+ * - A2: registry 只负责 name->class，不管理对象生命周期 / Registry maps name->class only.
  */
 """
 
 from __future__ import annotations
 
-import time
 import json
 import random
-from typing import Any, Mapping, Optional, List
-from dataclasses import dataclass
+import time
+from datetime import datetime, timezone
+from typing import Any, Dict, Iterable, Mapping, Optional
 
 import requests
 
-from .interface import DataSource, RawArtifact
 from ingest.wiring import register_source
-
-
-# ============================================================
-# DataMall request & endpoint models
-# ============================================================
-
-
-@dataclass(frozen=True)
-class DataMallRequest:
-    """
-    /**
-     * @brief DataMall 抓取请求模型 / DataMall fetch request model.
-     *
-     * @param dataset
-     *        数据集名称 / Dataset name.
-     * @param params
-     *        查询参数（OData）/ Query params (OData).
-     * @param accept
-     *        Accept header / Accept header.
-     */
-    """
-
-    dataset: str
-    params: Optional[Mapping[str, Any]] = None
-    accept: str = "application/json"
-
-
-@dataclass(frozen=True)
-class DataMallEndpointSpec:
-    """
-    /**
-     * @brief DataMall endpoint 规格 / DataMall endpoint spec.
-     *
-     * @param path
-     *        API path / API path.
-     * @param mode
-     *        默认抓取模式 / Default fetch mode.
-     * @param page_size
-     *        分页大小（若支持）/ Page size if supported.
-     */
-    """
-
-    path: str
-    mode: str
-    page_size: Optional[int] = None
-
-
-# ============================================================
-# DataMallSource
-# ============================================================
+from ingest.sources.new_interface import (
+    DataSource,
+    make_raw_cache_meta,
+    make_raw_cache_record,
+)
+from ingest.cache.interface import RawCacheRecord
 
 
 @register_source("datamall")
 class DataMallSource(DataSource):
     """
     /**
-     * @brief Singapore DataMall 数据源 / Singapore DataMall source.
+     * @brief Singapore LTA DataMall 数据源（V2） / Singapore LTA DataMall source (V2).
      *
-     * 设计要点：
-     * - 实例即请求（request-bound）
-     * - 构造函数绑定 dataset / params / mode
-     * - fetch/validate 参数仅作兼容，不作为主驱动
+     * 构造函数使用 **dict 映射（kwargs），不引入 config dataclass。
+     * fetch() 直接产出 RawCacheRecord 流，与 RawCache 对齐。
      */
     """
 
-    # DataMall 文档示例的 base（不带 /ltaodataservice 也可以，但这里固定含上更直观）
-    # Base from docs examples (include /ltaodataservice for clarity).
     DEFAULT_BASE_URL = "https://datamall2.mytransport.sg/ltaodataservice"
 
-    # ------------------------------------------------------------
-    # Endpoint registry
-    # ------------------------------------------------------------
-    _ENDPOINTS: Mapping[str, DataMallEndpointSpec] = {
-        "busstops": DataMallEndpointSpec(
-            path="/BusStops",
-            mode="paged",
-            page_size=500,
-        ),
-        "busroutes": DataMallEndpointSpec(
-            path="/BusRoutes",
-            mode="paged",
-            page_size=500,
-        ),
-        "trafficincidents": DataMallEndpointSpec(
-            path="/TrafficIncidents",
-            mode="realtime",
-        ),
-        # 可继续补充
+    # endpoint registry: dataset_key -> spec
+    # spec fields:
+    # - path: str
+    # - mode: "paged" | "realtime" | "scenario" | "linkfile"
+    # - page_size: Optional[int]
+    _ENDPOINTS: Dict[str, Dict[str, Any]] = {
+        "busstops": {"path": "/BusStops", "mode": "paged", "page_size": 500},
+        "busroutes": {"path": "/BusRoutes", "mode": "paged", "page_size": 500},
+        "trafficincidents": {
+            "path": "/TrafficIncidents",
+            "mode": "realtime",
+            "page_size": None,
+        },
+        # TODO: extend as needed
     }
 
-    # ------------------------------------------------------------
-    # Construction
-    # ------------------------------------------------------------
     def __init__(
         self,
         *,
         account_key: str,
-        dataset: Optional[str] = None,
+        dataset: str,
         params: Optional[Mapping[str, Any]] = None,
         accept: str = "application/json",
         mode: Optional[str] = None,
@@ -129,177 +74,67 @@ class DataMallSource(DataSource):
         timeout_seconds: float = 30.0,
         max_retries: int = 3,
         retry_backoff_seconds: float = 0.5,
+        min_interval_seconds: float = 0.1,
     ) -> None:
         """
         /**
          * @brief 构造 DataMallSource / Construct DataMallSource.
          *
-         * @param account_key
-         *        DataMall AccountKey.
-         * @param dataset
-         *        数据集名称（绑定到实例）/ Dataset name (bind to instance).
-         * @param params
-         *        查询参数 / Query params.
-         * @param accept
-         *        Accept header.
-         * @param mode
-         *        模式覆盖（paged/realtime/linkfile/scenario）/ Mode override.
+         * @param account_key DataMall AccountKey.
+         * @param dataset 数据集 key（如 busstops）/ Dataset key (e.g., busstops).
+         * @param params OData 查询参数 / OData query params.
+         * @param accept Accept header（默认 JSON）/ Accept header (default JSON).
+         * @param mode 覆盖 endpoint 默认模式 / Override endpoint default mode.
+         * @param base_url API base URL（默认官方）/ API base URL (default official).
+         * @param user_agent UA / User-Agent.
+         * @param timeout_seconds HTTP timeout / HTTP 超时秒数.
+         * @param max_retries 最大重试次数 / Max retries.
+         * @param retry_backoff_seconds 退避基数 / Backoff base seconds.
+         * @param min_interval_seconds 最小请求间隔（限速）/ Min interval between requests (rate limit).
          */
         """
 
-        # ---- identity / client config ----
         if not isinstance(account_key, str) or not account_key.strip():
             raise ValueError("account_key must be a non-empty string")
+        if not isinstance(dataset, str) or not dataset.strip():
+            raise ValueError("dataset must be a non-empty string")
+
+        if params is not None and not isinstance(params, Mapping):
+            raise ValueError("params must be a mapping if provided")
 
         self._account_key = account_key.strip()
+        self._dataset = dataset.strip()
+        self._params = dict(params) if params is not None else None
+        self._accept = str(accept or "application/json")
+
+        self._mode_override = str(mode).strip().lower() if mode is not None else None
         self._base_url = (base_url or self.DEFAULT_BASE_URL).rstrip("/")
         self._user_agent = user_agent
+
         self._timeout_seconds = float(timeout_seconds)
         self._max_retries = int(max_retries)
         self._retry_backoff_seconds = float(retry_backoff_seconds)
+        self._min_interval_seconds = float(min_interval_seconds)
+
         self._last_request_ts: float = 0.0
 
-        # ---- bind request at construction time ----
-        self._request: Optional[DataMallRequest] = None
-        if dataset is not None:
-            if not isinstance(dataset, str) or not dataset.strip():
-                raise ValueError("dataset must be a non-empty string if provided")
-            if params is not None and not isinstance(params, Mapping):
-                raise ValueError("params must be a mapping if provided")
-
-            self._request = DataMallRequest(
-                dataset=dataset.strip(),
-                params=dict(params) if params is not None else None,
-                accept=str(accept or "application/json"),
-            )
-
-        # ---- mode override ----
-        self._mode_override: Optional[str] = None
-        if mode is not None:
-            m = str(mode).strip().lower()
-            if not m:
-                raise ValueError("mode must be non-empty if provided")
-            self._mode_override = m
-
     # ------------------------------------------------------------
-    # Internal helpers
+    # V2 interface
     # ------------------------------------------------------------
-    def _resolve_endpoint(self, dataset: str) -> DataMallEndpointSpec:
-        key = dataset.strip().lower()
-        if key not in self._ENDPOINTS:
-            raise KeyError(key)
-        return self._ENDPOINTS[key]
-
-    def _coerce_request(
-        self, value: Mapping[str, Any] | DataMallRequest
-    ) -> DataMallRequest:
-        if isinstance(value, DataMallRequest):
-            return value
-        if not isinstance(value, Mapping):
-            raise TypeError("request must be a mapping or DataMallRequest")
-
-        dataset = value.get("dataset")
-        if not isinstance(dataset, str) or not dataset.strip():
-            raise ValueError("request['dataset'] must be a non-empty string")
-
-        params = value.get("params")
-        if params is not None and not isinstance(params, Mapping):
-            raise ValueError("request['params'] must be a mapping if provided")
-
-        accept = value.get("accept") or "application/json"
-        return DataMallRequest(dataset=dataset.strip(), params=params, accept=accept)
-
-    def _effective_request(
-        self, compat_value: Mapping[str, Any] | DataMallRequest
-    ) -> DataMallRequest:
-        """
-        /**
-         * @brief 获取本次抓取使用的有效 request / Get effective request.
-         *
-         * 优先级：
-         * 1) 构造函数绑定的 self._request（推荐）
-         * 2) 兼容参数（仅当实例未绑定 request）
-         */
-        """
-        if self._request is not None:
-            return self._request
-        return self._coerce_request(compat_value)
-
-    # ------------------------------------------------------------
-    # Public interface (unchanged)
-    # ------------------------------------------------------------
-    def validate(self, config: Mapping[str, Any]) -> None:
-        """
-        /**
-         * @brief 校验 DataMallSource 实例 / Validate DataMallSource instance.
-         *
-         * @note
-         * - 参数 config 仅为兼容 DataSource 接口
-         * - 本实现默认验证实例字段
-         */
-        """
-
-        # account_key 已在构造函数校验
-        if not self._account_key:
-            raise ValueError("account_key is missing")
-
-        try:
-            req = self._effective_request(config)
-        except Exception as e:
-            raise ValueError(f"invalid datamall request: {e}") from e
-
-        try:
-            self._resolve_endpoint(req.dataset)
-        except Exception as e:
-            raise ValueError(f"unknown datamall dataset: {req.dataset}") from e
-
-        if self._mode_override is not None:
-            if self._mode_override not in ("paged", "realtime", "scenario", "linkfile"):
-                raise ValueError(f"unknown datamall mode: {self._mode_override}")
-
-    def fetch(self, request: Mapping[str, Any] | DataMallRequest) -> List[RawArtifact]:
-        """
-        /**
-         * @brief 抓取 DataMall 数据 / Fetch data from DataMall.
-         *
-         * @note
-         * - 实际行为由实例字段驱动
-         * - 参数 request 仅用于兼容旧调用
-         */
-        """
-
-        req = self._effective_request(request)
-        spec = self._resolve_endpoint(req.dataset)
-
-        mode = (self._mode_override or spec.mode).lower()
-
-        if mode == "paged":
-            return self._fetch_paged(spec, req)
-        if mode == "realtime":
-            return [self._fetch_one(spec, req)]
-        if mode == "scenario":
-            return [self._fetch_one(spec, req)]
-        if mode == "linkfile":
-            return self._fetch_linkfile(spec, req)
-
-        raise ValueError(f"unknown datamall mode: {mode}")
-
     @classmethod
     def name(cls) -> str:
         """
         /**
-         * @brief 数据源稳定名称（用于 registry key）/ Stable source name (registry key).
-         * @return 稳定名称 / Stable name.
+         * @brief 数据源稳定名称 / Stable source name.
          */
         """
         return "datamall"
 
     @classmethod
-    def describe(cls) -> dict[str, str]:
+    def describe(cls) -> Dict[str, str]:
         """
         /**
-         * @brief 数据源静态描述（用于 provenance）/ Static description (for provenance).
-         * @return 描述键值 / Description kvs.
+         * @brief 数据源静态描述 / Static description for provenance.
          */
         """
         return {
@@ -308,60 +143,134 @@ class DataMallSource(DataSource):
             "base_url_default": cls.DEFAULT_BASE_URL,
         }
 
+    def validate(self) -> None:
+        """
+        /**
+         * @brief 校验 self.config（失败抛异常）/ Validate self.config (raise on failure).
+         */
+        """
+        if not self._account_key:
+            raise ValueError("account_key is missing")
+
+        spec = self._resolve_endpoint(self._dataset)
+
+        mode = (self._mode_override or spec["mode"]).lower()
+        if mode not in ("paged", "realtime", "scenario", "linkfile"):
+            raise ValueError(f"unknown datamall mode: {mode}")
+
+        if mode == "paged":
+            page_size = spec.get("page_size")
+            if not isinstance(page_size, int) or page_size <= 0:
+                raise ValueError(
+                    f"paged mode requires a positive page_size, got: {page_size}"
+                )
+
+    def fetch(self) -> Iterable[RawCacheRecord]:
+        """
+        /**
+         * @brief 拉取数据并产出 RawCacheRecord 流 / Fetch and yield RawCacheRecord stream.
+         */
+        """
+        self.validate()
+
+        spec = self._resolve_endpoint(self._dataset)
+        mode = (self._mode_override or spec["mode"]).lower()
+
+        if mode == "paged":
+            yield from self._fetch_paged(spec)
+            return
+
+        if mode in ("realtime", "scenario"):
+            yield self._fetch_one(spec, params=self._params)
+            return
+
+        if mode == "linkfile":
+            # 目前保持为单次请求；若未来有真正 link discovery，可在这里扩展二阶段 fetch。
+            yield self._fetch_one(spec, params=self._params)
+            return
+
+        raise ValueError(f"unknown datamall mode: {mode}")
+
     # ------------------------------------------------------------
-    # Fetch implementations (unchanged)
+    # Internals
     # ------------------------------------------------------------
+    def _resolve_endpoint(self, dataset: str) -> Dict[str, Any]:
+        key = dataset.strip().lower()
+        if key not in self._ENDPOINTS:
+            raise ValueError(f"unknown datamall dataset: {key}")
+        return self._ENDPOINTS[key]
+
+    def _now_iso_utc(self) -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    def _build_url(self, spec: Mapping[str, Any]) -> str:
+        return f"{self._base_url}{spec['path']}"
+
     def _fetch_one(
-        self, spec: DataMallEndpointSpec, req: DataMallRequest
-    ) -> RawArtifact:
-        url = f"{self._base_url}{spec.path}"
+        self, spec: Mapping[str, Any], *, params: Optional[Mapping[str, Any]]
+    ) -> RawCacheRecord:
+        url = self._build_url(spec)
         headers = {
             "AccountKey": self._account_key,
-            "Accept": req.accept,
+            "Accept": self._accept,
             "User-Agent": self._user_agent,
         }
 
-        resp = self._request_with_retry("GET", url, headers=headers, params=req.params)
-        return RawArtifact(
-            payload=resp.text,
+        resp = self._request_with_retry("GET", url, headers=headers, params=params)
+
+        # payload must be bytes in V2
+        payload = resp.content
+
+        # content-type: prefer response header, fallback to accept
+        content_type = resp.headers.get("Content-Type", "") or self._accept
+        # very conservative encoding: requests may guess; fallback to utf-8
+        encoding = (resp.encoding or "utf-8").lower()
+
+        meta = make_raw_cache_meta(
+            source_name=self.name(),
+            fetched_at_iso=self._now_iso_utc(),
+            content_type=content_type,
+            encoding=encoding,
+            cache_path="",
             meta={
-                "dataset": req.dataset,
+                "dataset": self._dataset,
                 "url": url,
+                "mode": (self._mode_override or spec["mode"]).lower(),
+                "params_json": json.dumps(
+                    dict(params or {}), ensure_ascii=False, sort_keys=True
+                ),
             },
         )
 
-    def _fetch_paged(
-        self, spec: DataMallEndpointSpec, req: DataMallRequest
-    ) -> List[RawArtifact]:
-        assert spec.page_size is not None
+        return make_raw_cache_record(payload=payload, meta=meta)
 
-        artifacts: List[RawArtifact] = []
+    def _fetch_paged(self, spec: Mapping[str, Any]) -> Iterable[RawCacheRecord]:
+        page_size = int(spec["page_size"])
         skip = 0
 
         while True:
-            params = dict(req.params or {})
+            params = dict(self._params or {})
             params["$skip"] = skip
 
-            artifact = self._fetch_one(
-                spec,
-                DataMallRequest(dataset=req.dataset, params=params, accept=req.accept),
-            )
-            artifacts.append(artifact)
+            record = self._fetch_one(spec, params=params)
+            yield record
 
-            data = json.loads(artifact.payload)
-            value = data.get("value") or []
-            if len(value) < spec.page_size:
+            # Determine whether to continue paging:
+            # For JSON responses following DataMall style: {"value":[...], ...}
+            try:
+                decoded = record.payload.decode("utf-8", errors="replace")
+                data = json.loads(decoded)
+                value = data.get("value") or []
+                if not isinstance(value, list):
+                    # Unexpected shape -> stop to avoid infinite loop
+                    break
+                if len(value) < page_size:
+                    break
+            except Exception:
+                # If parse fails, stop paging (better safe than infinite loop)
                 break
 
-            skip += spec.page_size
-
-        return artifacts
-
-    def _fetch_linkfile(
-        self, spec: DataMallEndpointSpec, req: DataMallRequest
-    ) -> List[RawArtifact]:
-        # 保持原实现
-        return [self._fetch_one(spec, req)]
+            skip += page_size
 
     # ------------------------------------------------------------
     # HTTP
@@ -372,12 +281,14 @@ class DataMallSource(DataSource):
         url: str,
         *,
         headers: Mapping[str, str],
-        params: Optional[Mapping[str, Any]] = None,
+        params: Optional[Mapping[str, Any]],
     ) -> requests.Response:
         for attempt in range(self._max_retries + 1):
+            # basic rate limit
             now = time.time()
-            if now - self._last_request_ts < 0.1:
-                time.sleep(0.1)
+            delta = now - self._last_request_ts
+            if delta < self._min_interval_seconds:
+                time.sleep(self._min_interval_seconds - delta)
 
             self._last_request_ts = time.time()
 
@@ -385,8 +296,8 @@ class DataMallSource(DataSource):
                 resp = requests.request(
                     method,
                     url,
-                    headers=headers,
-                    params=params,
+                    headers=dict(headers),
+                    params=dict(params) if params is not None else None,
                     timeout=self._timeout_seconds,
                 )
                 resp.raise_for_status()
@@ -394,6 +305,7 @@ class DataMallSource(DataSource):
             except Exception:
                 if attempt >= self._max_retries:
                     raise
-                time.sleep(self._retry_backoff_seconds * (2**attempt + random.random()))
+                backoff = self._retry_backoff_seconds * (2**attempt + random.random())
+                time.sleep(backoff)
 
         raise RuntimeError("unreachable")
