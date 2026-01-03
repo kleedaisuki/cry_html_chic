@@ -50,6 +50,8 @@ from __future__ import annotations
 import argparse
 import sys
 import traceback
+# import os
+from pathlib import Path
 from typing import List, Optional
 from pathlib import Path
 
@@ -161,14 +163,19 @@ def cmd_run(args: argparse.Namespace) -> int:
     )
 
     # 覆盖 fail_fast（CLI > config）
+    execution = loaded.config.execution
     if args.fail_fast:
-        loaded.execution.fail_fast = True
+        from dataclasses import replace
+        execution = replace(execution, fail_fast=True)
     if args.no_fail_fast:
-        loaded.execution.fail_fast = False
+        from dataclasses import replace
+        execution = replace(execution, fail_fast=False)
 
     ensure_plugins_loaded(loaded)
 
-    jobs = loaded.jobs
+    jobs = loaded.config.jobs
+    # 使用覆盖后的 execution
+    fail_fast = execution.fail_fast
     if args.jobs:
         jobs = [j for j in jobs if j.name in args.jobs]
 
@@ -187,10 +194,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             task.run()
         except Exception as e:
             failures += 1
-            logger.error(f"Job failed: {task.job.name}")
-            logger.debug(traceback.format_exc())
+            logger.error(f"Job failed: {task.job.name}: {e}")
+            import traceback as tb
+            logger.error(tb.format_exc())
 
-            if loaded.execution.fail_fast:
+            if fail_fast:
                 break
         finally:
             try:

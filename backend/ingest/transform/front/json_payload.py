@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from typing import Any, Mapping, Optional, Sequence
 
-from ingest.transform.interface import (
+from ..interface import (
     FrontendCompiler,
     IRModule,
     JsonValue,
@@ -26,7 +26,7 @@ from ingest.transform.interface import (
     UnsupportedInputError,
     RawRecord,
 )
-from ingest.wiring import register_frontend
+from ...wiring import register_frontend
 
 
 def _as_json_value(x: Any, *, what: str) -> JsonValue:

@@ -18,9 +18,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from ingest.utils.logger import get_logger
-from ingest.cli.configs import LoadedConfig, JobConfig
-from ingest.cli.tasks.interface import (
+from ...utils.logger import get_logger
+from ..configs import LoadedConfig, JobConfig
+from .interface import (
     Task,
     TaskState,
     TaskError,
@@ -28,9 +28,9 @@ from ingest.cli.tasks.interface import (
     Diagnostics,
 )
 
-from ingest.cache.interface import CacheKey
-from ingest.transform.interface import TransformerSpec, JsTargetSpec
-from ingest.transform.transformer import Transformer
+from ...cache.interface import CacheKey
+from ...transform.interface import TransformerSpec, JsTargetSpec
+from ...transform.transformer import Transformer
 
 _LOG = get_logger(__name__)
 
@@ -76,7 +76,7 @@ class RunJobTask(Task):
         paths = self.loaded.paths
 
         # 延迟 import：避免 import-time 副作用
-        from ingest import wiring
+        from ... import wiring
 
         # -------- caches --------
         raw_cache_cls = wiring.RAW_CACHES.require(cfg.cache_configs.raw.name)
@@ -84,14 +84,8 @@ class RunJobTask(Task):
             cfg.cache_configs.preprocessed.name
         )
 
-        raw_cache = raw_cache_cls(
-            root=paths.raw_root,
-            config=cfg.cache_configs.raw.config,
-        )
-        pre_cache = pre_cache_cls(
-            root=paths.preprocessed_root,
-            config=cfg.cache_configs.preprocessed.config,
-        )
+        raw_cache = raw_cache_cls(base_dir=paths.raw_root)
+        pre_cache = pre_cache_cls(base_dir=paths.preprocessed_root)
 
         # -------- transformer spec --------
         tcfg = cfg.transform_configs
@@ -138,13 +132,13 @@ class RunJobTask(Task):
         _LOG.info("task[%s] run start", self.job.name)
 
         try:
-            from ingest import wiring
+            from ... import wiring
 
             cfg = self.loaded.config
 
             # -------- source --------
             source_cls = wiring.SOURCES.require(self.job.source.name)
-            source = source_cls()
+            source = source_cls(**self.job.source.config)
 
             source.validate(self.job.source.config)
 
@@ -182,7 +176,7 @@ class RunJobTask(Task):
                 message=str(e),
                 traceback=traceback.format_exc(),
             )
-            _LOG.error("task[%s] failed: %s", self.job.name, e)
+            _LOG.error("task[%s] failed: %s\n%s", self.job.name, e, traceback.format_exc())
             raise
 
     def close(self) -> None:

@@ -513,3 +513,13 @@ class FileSystemRawCache(RawCache):
             "raw cache key is ambiguous (multiple runs). "
             f"Please provide fetched_at_iso. candidates={[c.name for c in sorted(candidates)]}"
         )
+
+
+# ============================================================
+# Registry / 注册表
+# ============================================================
+
+from ..wiring import register_raw_cache
+
+# 注册 FileSystemRawCache
+register_raw_cache("fs_raw")(FileSystemRawCache)

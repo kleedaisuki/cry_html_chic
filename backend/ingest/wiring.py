@@ -16,13 +16,13 @@
 
 from __future__ import annotations
 
-from ingest.utils.registry import Registry
-
+# Use package-relative imports so `Backend` can be used as a top-level package
+from .utils.registry import Registry
 # ============================================================
 # Sources registry / 数据源注册表
 # ============================================================
 
-from ingest.sources.interface import DataSource
+from .sources.interface import DataSource
 
 #: Registry for all DataSource implementations.
 #: 所有 DataSource 实现的注册表。
@@ -40,7 +40,7 @@ register_source = SOURCES.register
 # Caches registry / 缓存注册表
 # ============================================================
 
-from ingest.cache.interface import PreprocessedCache, RawCache
+from .cache.interface import PreprocessedCache, RawCache
 
 #: Registry for all RawCache implementations.
 #: 所有 RawCache 实现的注册表。
@@ -69,7 +69,7 @@ register_preprocessed_cache = PREPROCESSED_CACHES.register
 # Transform toolchain registries / Transform 工具链注册表
 # ============================================================
 
-from ingest.transform.interface import BackendCompiler, FrontendCompiler, Optimizer
+from .transform.interface import BackendCompiler, FrontendCompiler, Optimizer
 
 #: Registry for all FrontendCompiler implementations.
 #: 所有 FrontendCompiler 实现的注册表。
