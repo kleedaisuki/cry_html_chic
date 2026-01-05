@@ -54,11 +54,21 @@ const LayerManager = (function() {
             return null;
         }
 
-        // 创建样式函数 - 初始使用灰色，客流量到达后通过 updateRouteColors 更新颜色
+        // 根据类型获取颜色
+        const getColorByType = (type) => {
+            switch (type) {
+                case 'mrt': return '#3182bd';  // 深蓝色
+                case 'lrt': return '#31a354';  // 深绿色
+                case 'bus': return '#e6550d';  // 深橙色
+                default: return '#3182bd';
+            }
+        };
+
+        // 创建样式函数
         const styleFunction = (feature) => {
             const type = feature.properties?.type || routeInfo?.type || 'mrt';
             return {
-                color: '#cccccc',  // 初始灰色，updateRouteColors 会更新
+                color: getColorByType(type),
                 weight: 5,
                 opacity: 0.9
             };
