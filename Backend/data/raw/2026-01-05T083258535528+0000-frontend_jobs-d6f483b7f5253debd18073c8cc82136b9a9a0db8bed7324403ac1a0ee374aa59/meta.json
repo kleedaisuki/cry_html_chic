@@ -1,0 +1,27 @@
+{
+  "checksum": {
+    "algo": "sha256",
+    "hex": "d8b5db1c52072ead8e1d873e3ce91d6dca913904c15873b815f71765e087162d"
+  },
+  "key": {
+    "config_name": "frontend_jobs",
+    "content_hash": "d6f483b7f5253debd18073c8cc82136b9a9a0db8bed7324403ac1a0ee374aa59",
+    "fetched_at_iso": "2026-01-05T08:32:58.535528+00:00"
+  },
+  "payload_file": "payload.bin",
+  "raw": {
+    "cache_path": "",
+    "content_type": "application/json;charset=UTF-8",
+    "encoding": "utf-8",
+    "fetched_at_iso": "2026-01-05T08:32:58.535528+00:00",
+    "meta": {
+      "dataset": "busroutes",
+      "mode": "paged",
+      "params_json": "{\"$skip\": 6000}",
+      "url": "https://datamall2.mytransport.sg/ltaodataservice/BusRoutes"
+    },
+    "source_name": "datamall"
+  },
+  "size_bytes": 116944,
+  "version": 1
+}
