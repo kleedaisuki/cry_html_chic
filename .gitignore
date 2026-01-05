@@ -351,3 +351,5 @@ __marimo__/
 
 default.json
 configs/ingest/bus_jobs_api.json
+
+/scripts/data

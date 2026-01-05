@@ -278,6 +278,25 @@
         } catch (error) {
             console.warn('Failed to load bus stops:', error);
         }
+
+        // 初始化图层管理器
+        if (window.LayerManager) {
+            LayerManager.init();
+        }
+    }
+
+    /**
+     * 初始化公交站点
+     */
+    async function initBusStops() {
+        try {
+            const busStops = await API.getAllBusStops();
+            if (busStops && busStops.length > 0 && window.LayerManager) {
+                LayerManager.addBusStops(busStops);
+            }
+        } catch (error) {
+            console.warn('Failed to load bus stops:', error);
+        }
     }
 
     /**
