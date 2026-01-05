@@ -350,5 +350,4 @@ __marimo__/
 /train
 
 default.json
-*/data
 configs/ingest/bus_jobs_api.json

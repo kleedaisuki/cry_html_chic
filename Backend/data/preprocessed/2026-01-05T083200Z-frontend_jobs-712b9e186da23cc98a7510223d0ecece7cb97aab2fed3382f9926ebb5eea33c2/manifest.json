@@ -1,0 +1,20 @@
+{
+  "checksums": {
+    "constants/constants.js": {
+      "algo": "sha256",
+      "hex": "880bca62c10910a47556bf1abe99a042c48d4a9487ca1e9b6dfae857849a0170",
+      "size_bytes": 70301
+    }
+  },
+  "key": {
+    "config_name": "frontend_jobs",
+    "content_hash": "712b9e186da23cc98a7510223d0ecece7cb97aab2fed3382f9926ebb5eea33c2",
+    "fetched_at_iso": "2026-01-05T08:32:00Z"
+  },
+  "manifest": {
+    "files": [
+      "constants/constants.js"
+    ]
+  },
+  "version": 1
+}

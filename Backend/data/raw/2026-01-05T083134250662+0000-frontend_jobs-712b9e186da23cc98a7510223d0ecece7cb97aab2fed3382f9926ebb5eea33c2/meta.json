@@ -1,0 +1,27 @@
+{
+  "checksum": {
+    "algo": "sha256",
+    "hex": "45e078885519d669f0a3cb8e4d52c4bba94d744dee5113f8b81161abab3410bc"
+  },
+  "key": {
+    "config_name": "frontend_jobs",
+    "content_hash": "712b9e186da23cc98a7510223d0ecece7cb97aab2fed3382f9926ebb5eea33c2",
+    "fetched_at_iso": "2026-01-05T08:31:34.250662+00:00"
+  },
+  "payload_file": "payload.bin",
+  "raw": {
+    "cache_path": "",
+    "content_type": "application/json;charset=UTF-8",
+    "encoding": "utf-8",
+    "fetched_at_iso": "2026-01-05T08:31:34.250662+00:00",
+    "meta": {
+      "dataset": "busstops",
+      "mode": "paged",
+      "params_json": "{\"$skip\": 500}",
+      "url": "https://datamall2.mytransport.sg/ltaodataservice/BusStops"
+    },
+    "source_name": "datamall"
+  },
+  "size_bytes": 69998,
+  "version": 1
+}

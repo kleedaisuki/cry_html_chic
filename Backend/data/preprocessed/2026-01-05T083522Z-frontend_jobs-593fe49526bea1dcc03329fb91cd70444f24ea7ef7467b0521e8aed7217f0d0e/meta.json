@@ -1,0 +1,32 @@
+{
+  "key": {
+    "config_name": "frontend_jobs",
+    "content_hash": "593fe49526bea1dcc03329fb91cd70444f24ea7ef7467b0521e8aed7217f0d0e",
+    "fetched_at_iso": "2026-01-05T08:35:22Z"
+  },
+  "preprocessed": {
+    "built_at_iso": "2026-01-05T08:35:22Z",
+    "extra": {
+      "diagnostics": {
+        "artifact_names": [
+          "constants/constants.js"
+        ],
+        "artifacts_count": 1
+      },
+      "transform": {
+        "backend": "js_constants@1.0.0",
+        "extra": {
+          "config_name": "frontend_jobs",
+          "content_hash": "593fe49526bea1dcc03329fb91cd70444f24ea7ef7467b0521e8aed7217f0d0e",
+          "raw_fetched_at_iso": "2026-01-05T08:32:06.997150+00:00"
+        },
+        "frontend": "json_payload@0.1.0",
+        "ir_version": 1,
+        "js_abi_version": 1,
+        "optimizer": "plain@1.0.0"
+      }
+    },
+    "schema_version": 1
+  },
+  "version": 1
+}
