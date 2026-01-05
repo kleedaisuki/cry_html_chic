@@ -50,17 +50,27 @@ const LayerManager = (function() {
      */
     function addRoute(routeId, routeInfo, geojson) {
         if (!routeLayerGroup || !geojson) {
+            console.warn('LayerManager.addRoute: missing routeLayerGroup or geojson');
             return null;
         }
+
+        // 根据类型获取颜色
+        const getColorByType = (type) => {
+            switch (type) {
+                case 'mrt': return '#3182bd';  // 深蓝色
+                case 'lrt': return '#31a354';  // 深绿色
+                case 'bus': return '#e6550d';  // 深橙色
+                default: return '#3182bd';
+            }
+        };
 
         // 创建样式函数
         const styleFunction = (feature) => {
             const type = feature.properties?.type || routeInfo?.type || 'mrt';
-            const config = CONFIG.transportTypes[type] || CONFIG.transportTypes.mrt;
             return {
-                color: config.colorRange[0],
-                weight: 4,
-                opacity: 0.8
+                color: getColorByType(type),
+                weight: 5,
+                opacity: 0.9
             };
         };
 
@@ -402,6 +412,9 @@ const LayerManager = (function() {
         fitToRoute
     };
 })();
+
+// 挂载到 window 对象（确保全局可访问）
+window.LayerManager = LayerManager;
 
 // 导出（用于模块系统）
 if (typeof module !== 'undefined' && module.exports) {
