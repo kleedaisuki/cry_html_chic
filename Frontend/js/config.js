@@ -58,11 +58,10 @@ const CONFIG = {
     // 数据配置
     data: {
         // 数据目录路径（相对于 index.html）
-        basePath: '../../data/preprocessed',
+        basePath: 'data',
         // 数据文件列表
         files: [
-            'passenger_flow.js',
-            'routes.js'
+            'bus_stops.js'
         ],
         // 数据加载超时时间 (ms)
         timeout: 30000

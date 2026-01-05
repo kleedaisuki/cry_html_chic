@@ -154,6 +154,45 @@ const LayerManager = (function() {
     }
 
     /**
+     * 添加公交站点标记（适配 BusStops 数据集）
+     * @param {Array} busStops - BusStops 数据数组
+     * @returns {Array} 标记数组
+     */
+    function addBusStops(busStops) {
+        if (!stationLayerGroup || !busStops) {
+            return [];
+        }
+
+        const markers = [];
+
+        busStops.forEach(stop => {
+            // BusStops 数据格式: {BusStopCode, Description, Latitude, Longitude, RoadName}
+            if (stop.Latitude && stop.Longitude) {
+                const position = [stop.Latitude, stop.Longitude];
+                const marker = L.circleMarker(position, {
+                    radius: 4,
+                    fillColor: '#f39c12',  // 橙色
+                    color: '#fff',
+                    weight: 1,
+                    fillOpacity: 0.7
+                });
+
+                marker.bindPopup(`
+                    <strong>${stop.Description || stop.BusStopCode}</strong><br>
+                    <small>站点编号: ${stop.BusStopCode}</small><br>
+                    <small>道路: ${stop.RoadName || '-'}</small>
+                `);
+
+                marker.addTo(stationLayerGroup);
+                markers.push(marker);
+            }
+        });
+
+        console.log(`Added ${markers.length} bus stop markers to the map`);
+        return markers;
+    }
+
+    /**
      * 根据客流数据更新线路颜色
      * @param {Array} flowData - 客流数据数组
      */
@@ -349,6 +388,7 @@ const LayerManager = (function() {
         init,
         addRoute,
         addStations,
+        addBusStops,
         updateRouteColors,
         selectRoute,
         clearSelection,
