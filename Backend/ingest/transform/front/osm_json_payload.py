@@ -214,7 +214,7 @@ def _extract_relation_members_geoms(
 # ============================================================
 
 
-@register_frontend("json_payload")
+@register_frontend("osm_json_payload")
 class OsmJsonFrontendCompiler(FrontendCompiler):
     """
     /**
