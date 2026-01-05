@@ -1,0 +1,132 @@
+{
+    "version": 1,
+    "profile": "frontend_jobs",
+    "log_level": "DEBUG",
+    "paths": {
+        "configs_root": "configs/ingest",
+        "data_root": "data",
+        "raw_root": "data/raw",
+        "preprocessed_root": "data/preprocessed"
+    },
+    "execution": {
+        "parallelism": 4,
+        "strategy": "threads",
+        "fail_fast": true
+    },
+    "cache_configs": {
+        "raw": {
+            "name": "fs_raw",
+            "config": {
+                "base_dir": "data/raw"
+            }
+        },
+        "preprocessed": {
+            "name": "fs_preprocessed",
+            "config": {
+                "base_dir": "data/preprocessed"
+            }
+        }
+    },
+    "transform_configs": {
+        "ir_version": 1,
+        "target": {
+            "js_abi_version": 1,
+            "module_format": "esm",
+            "layout": "single",
+            "path_prefix": "constants/",
+            "options": {}
+        }
+    },
+    "plugins": [
+        "ingest.sources.datamall",
+        "ingest.cache.raw",
+        "ingest.cache.preprocess",
+        "ingest.transform.front.json_payload",
+        "ingest.transform.optimizer.plain_optimizer",
+        "ingest.transform.output.js_constants"
+    ],
+    "jobs": [
+        {
+            "name": "datamall_bus_stops",
+            "source": {
+                "name": "datamall",
+                "config": {
+                    "dataset": "busstops",
+                    "account_key": "api_key_here"
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "json_payload",
+                    "config": {}
+                },
+                "optimizer": {
+                    "name": "plain",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "js_constants",
+                    "config": {
+                        "export_name": "BUS_STOPS"
+                    }
+                }
+            }
+        },
+        {
+            "name": "datamall_bus_routes",
+            "source": {
+                "name": "datamall",
+                "config": {
+                    "dataset": "busroutes",
+                    "account_key": "api_key_here"
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "json_payload",
+                    "config": {}
+                },
+                "optimizer": {
+                    "name": "plain",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "js_constants",
+                    "config": {
+                        "export_name": "BUS_ROUTES"
+                    }
+                }
+            }
+        },
+        {
+            "name": "datamall_passenger_volume_bus_stops",
+            "source": {
+                "name": "datamall",
+                "config": {
+                    "dataset": "pv_bus",
+                    "account_key": "api_key_here",
+                    "mode": "linkfile",
+                    "params": {
+                        "Date": "202511"
+                    }
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "json_payload",
+                    "config": {}
+                },
+                "optimizer": {
+                    "name": "plain",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "js_constants",
+                    "config": {
+                        "export_name": "PASSENGER_FLOW_BUS_STOPS"
+                    }
+                }
+            }
+        }
+    ]
+}
