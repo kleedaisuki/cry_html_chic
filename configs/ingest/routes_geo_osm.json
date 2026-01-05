@@ -1,0 +1,186 @@
+{
+    "version": 1,
+    "profile": "routes-geo-osm",
+    "log_level": "DEBUG",
+    "paths": {
+        "configs_root": "configs/ingest",
+        "data_root": "data",
+        "raw_root": "data/raw",
+        "preprocessed_root": "data/preprocessed"
+    },
+    "execution": {
+        "parallelism": 4,
+        "strategy": "threads",
+        "fail_fast": true
+    },
+    "cache_configs": {
+        "raw": {
+            "name": "fs_raw",
+            "config": {
+                "base_dir": "data/raw"
+            }
+        },
+        "preprocessed": {
+            "name": "fs_preprocessed",
+            "config": {
+                "base_dir": "data/preprocessed"
+            }
+        }
+    },
+    "transform_configs": {
+        "ir_version": 1,
+        "target": {
+            "js_abi_version": 1,
+            "module_format": "esm",
+            "layout": "single",
+            "path_prefix": "constants/",
+            "options": {}
+        }
+    },
+    "plugins": [
+        "ingest.sources.osm_overpass",
+        "ingest.cache.raw",
+        "ingest.cache.preprocess",
+        "ingest.transform.front.osm_json_payload",
+        "ingest.transform.optimizer.osm_json_optimzer",
+        "ingest.transform.output.json_output"
+    ],
+    "jobs": [
+        {
+            "name": "routes_mrt_osm",
+            "source": {
+                "name": "osm_overpass",
+                "config": {
+                    "endpoint_url": "https://overpass-api.de/api/interpreter",
+                    "query": "[out:json][timeout:60];\narea[name=\"Singapore\"]->.a;\n(\n  relation[\"type\"=\"route\"][\"route\"=\"subway\"](area.a);\n);\nout body geom;",
+                    "user_agent": "SG-TRANSIT-VIS/ingest",
+                    "sleep_sec": 1.0
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "osm_json_payload",
+                    "config": {
+                        "only_types": [
+                            "relation",
+                            "way"
+                        ],
+                        "relation_mode": "multigeom",
+                        "allow_tag_keys": [
+                            "type",
+                            "route",
+                            "ref",
+                            "name",
+                            "network",
+                            "operator",
+                            "colour",
+                            "color"
+                        ]
+                    }
+                },
+                "optimizer": {
+                    "name": "osm_json_optimzer",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "json_output",
+                    "config": {
+                        "stem": "routes_mrt",
+                        "indent": 2
+                    }
+                }
+            }
+        },
+        {
+            "name": "routes_lrt_osm",
+            "source": {
+                "name": "osm_overpass",
+                "config": {
+                    "endpoint_url": "https://overpass-api.de/api/interpreter",
+                    "query": "[out:json][timeout:60];\narea[name=\"Singapore\"]->.a;\n(\n  relation[\"type\"=\"route\"][\"route\"=\"light_rail\"](area.a);\n);\nout body geom;",
+                    "user_agent": "SG-TRANSIT-VIS/ingest",
+                    "sleep_sec": 1.0
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "osm_json_payload",
+                    "config": {
+                        "only_types": [
+                            "relation",
+                            "way"
+                        ],
+                        "relation_mode": "multigeom",
+                        "allow_tag_keys": [
+                            "type",
+                            "route",
+                            "ref",
+                            "name",
+                            "network",
+                            "operator",
+                            "colour",
+                            "color"
+                        ]
+                    }
+                },
+                "optimizer": {
+                    "name": "osm_json_optimzer",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "json_output",
+                    "config": {
+                        "stem": "routes_lrt",
+                        "indent": 2
+                    }
+                }
+            }
+        },
+        {
+            "name": "routes_bus_osm",
+            "source": {
+                "name": "osm_overpass",
+                "config": {
+                    "endpoint_url": "https://overpass-api.de/api/interpreter",
+                    "query": "[out:json][timeout:180];\narea[name=\"Singapore\"]->.a;\n(\n  relation[\"type\"=\"route\"][\"route\"=\"bus\"](area.a);\n);\nout body geom;",
+                    "timeout_sec": 240,
+                    "user_agent": "SG-TRANSIT-VIS/ingest",
+                    "sleep_sec": 2.0
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "osm_json_payload",
+                    "config": {
+                        "only_types": [
+                            "relation",
+                            "way"
+                        ],
+                        "relation_mode": "multigeom",
+                        "allow_tag_keys": [
+                            "type",
+                            "route",
+                            "ref",
+                            "name",
+                            "operator",
+                            "network",
+                            "colour",
+                            "color"
+                        ]
+                    }
+                },
+                "optimizer": {
+                    "name": "osm_json_optimzer",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "json_output",
+                    "config": {
+                        "stem": "routes_bus",
+                        "indent": 2
+                    }
+                }
+            }
+        }
+    ]
+}
