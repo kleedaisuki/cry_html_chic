@@ -40,6 +40,9 @@
             // 初始化时间轴
             initTimeline(dataResult.timestamps);
 
+            // 渲染线路到地图
+            await renderRoutes();
+
             // 渲染初始数据
             if (dataResult.timestamps.length > 0) {
                 // 设置第一个时间点
@@ -170,13 +173,96 @@
      * 初始化地图
      */
     async function initMap() {
+        console.log('initMap called');
+        console.log('window.MapManager:', typeof window.MapManager);
+
         if (window.MapManager) {
-            await MapManager.init(Helpers.$('#map-container'));
+            console.log('Calling MapManager.init...');
+            try {
+                const map = await MapManager.init(Helpers.$('#map-container'));
+                console.log('MapManager.init returned:', !!map);
+            } catch (e) {
+                console.error('MapManager.init error:', e);
+            }
+        } else {
+            console.error('MapManager not found on window!');
         }
 
         // 初始化图层管理器
         if (window.LayerManager) {
+            console.log('Initializing LayerManager...');
             LayerManager.init();
+        } else {
+            console.error('LayerManager not found on window!');
+        }
+    }
+
+    /**
+     * 渲染线路到地图
+     */
+    async function renderRoutes() {
+        try {
+            const routes = await API.loadRoutes();
+
+            if (!routes || Object.keys(routes).length === 0) {
+                console.warn('No routes data to render');
+                return;
+            }
+
+            // 调试：检查地图状态
+            const map = MapManager.getMap();
+            console.log('Map instance:', !!map);
+            if (!map) {
+                console.error('Map not initialized!');
+                return;
+            }
+
+            // 遍历所有线路并添加到地图
+            for (const [routeId, routeInfo] of Object.entries(routes)) {
+                if (!routeInfo.coordinates || routeInfo.coordinates.length < 2) {
+                    console.warn(`Route ${routeId}: invalid coordinates`);
+                    continue;
+                }
+
+                // 转换为 GeoJSON 格式
+                const geojson = {
+                    type: 'Feature',
+                    properties: {
+                        name: routeInfo.name,
+                        type: routeInfo.type,
+                        id: routeId
+                    },
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: routeInfo.coordinates.map(coord => {
+                            if (Array.isArray(coord) && coord.length === 2) {
+                                return [coord[0], coord[1]];
+                            }
+                            return coord;
+                        })
+                    }
+                };
+
+                // 添加到图层管理器
+                if (window.LayerManager) {
+                    LayerManager.addRoute(routeId, routeInfo, geojson);
+                }
+            }
+
+            console.log(`Rendered ${Object.keys(routes).length} routes to the map`);
+
+            // 刷新地图尺寸
+            setTimeout(() => {
+                if (map) {
+                    map.invalidateSize();
+                    console.log('Map size invalidated');
+                    console.log('Map center:', map.getCenter());
+                    console.log('Map zoom:', map.getZoom());
+                }
+            }, 500);
+
+        } catch (error) {
+            console.error('Failed to render routes:', error);
         }
     }
 
