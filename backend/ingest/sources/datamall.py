@@ -58,6 +58,15 @@ class DataMallSource(DataSource):
             "mode": "realtime",
             "page_size": None,
         },
+        # ============================================================
+        # Passenger Volume (PV) / 客流量（PV）
+        # ============================================================
+        # These endpoints return a JSON with a short-lived "Link" to download a file.
+        # 这些接口返回一个包含短期有效下载链接 "Link" 的 JSON（不是分页 value 列表）。
+        "pv_bus": {"path": "/PV/Bus", "mode": "linkfile", "page_size": None},
+        "pv_odbus": {"path": "/PV/ODBus", "mode": "linkfile", "page_size": None},
+        "pv_train": {"path": "/PV/Train", "mode": "linkfile", "page_size": None},
+        "pv_odtrain": {"path": "/PV/ODTrain", "mode": "linkfile", "page_size": None},
         # TODO: extend as needed
     }
 
