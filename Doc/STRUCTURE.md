@@ -98,7 +98,8 @@ cry_html_chic/
 │       │   └── main.py                 # CLI 入口：ingest ...，解析参数
 │       │
 │       ├── sources/
-│       │   ├── interface.py            # 算子接口，通过继承定义新的算子       
+│       │   ├── interface.py            # 算子接口，通过继承定义新的算子      
+│       │   ├── osm_overpass.py         # 获取真实地理位置数据    
 │       │   ├── data_gov_sg.py          # HTTP 获取：data.gov.sg         
 │       │   └── datamall.py             # HTTP 获取：datamall
 │       │
@@ -112,12 +113,15 @@ cry_html_chic/
 │       │   ├── interface.py                # 算子接口，通过继承定义新的算子
 │       │   ├── transformer.py              # 管理 raw -> IR (Python builtin) -> preprocessed
 │       │   ├── front/                      # operators for raw -> IR
-│       │   │   ├── json_payload.py         # 解析被理解为 JSON 的 bytes               
+│       │   │   ├── json_payload.py         # 解析被理解为 JSON 的 bytes
+│       │   │   ├── osm_json_payload.py     # 解析被理解为 OSM JSON 的 bytes                
 │       │   │   └── ... 
 │       │   ├── optimizer/                  # operators for cleaning
+│       │   │   ├── osm_json_optimizer.py   # osm_json 的提取器
 │       │   │   ├── plain_optimizer.py      # 什么都不做，单纯传递 IR 的优化器               
 │       │   │   └── ...       
 │       │   └── output/                     # operators for IR -> preprocessed
+│       │       ├── js_constants.py         # 输出为 JSON 的编译后端
 │       │       ├── js_constants.py         # 输出为 js 常量的编译后端
 │       │       └── ... 
 │       │   
