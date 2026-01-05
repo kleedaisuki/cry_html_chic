@@ -3,15 +3,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import (
-    Any,
     Dict,
     Iterable,
     Mapping,
-    Protocol,
     Sequence,
     Union,
-    runtime_checkable,
 )
+from abc import ABC, abstractmethod
 
 # ---------------------------
 # JSON type (shared utility)
@@ -75,9 +73,7 @@ class CacheKey:
 
     config_name: str
     content_hash: str
-    fetched_at_iso: str | None = (
-        None
-    )
+    fetched_at_iso: str | None = None
 
 
 # ---------------------------
@@ -152,8 +148,7 @@ class ArtifactManifest:
 # ---------------------------
 
 
-@runtime_checkable
-class RawCache(Protocol):
+class RawCache(ABC):
     """
     @brief Raw 缓存纯接口 / Raw cache protocol (behavior contract only).
     @note
@@ -161,12 +156,14 @@ class RawCache(Protocol):
       Only defines cache/provenance behaviors; no constraints on layout/atomic write/locking impl.
     """
 
+    @abstractmethod
     def has(self, key: CacheKey) -> bool:
         """
         @brief 是否存在该 key 的 raw 缓存 / Whether raw cache exists for key.
         """
         ...
 
+    @abstractmethod
     def save(self, key: CacheKey, record: RawCacheRecord) -> None:
         """
         @brief 保存 raw 缓存（payload + meta）/ Save raw cache (payload + meta).
@@ -176,6 +173,7 @@ class RawCache(Protocol):
         """
         ...
 
+    @abstractmethod
     def load(self, key: CacheKey) -> RawCacheRecord:
         """
         @brief 读取 raw 缓存（payload + meta）/ Load raw cache (payload + meta).
@@ -186,6 +184,7 @@ class RawCache(Protocol):
         """
         ...
 
+    @abstractmethod
     def iter_keys(self, config_name: str | None = None) -> Iterable[CacheKey]:
         """
         @brief 枚举缓存键 / Iterate cache keys.
@@ -195,8 +194,7 @@ class RawCache(Protocol):
         ...
 
 
-@runtime_checkable
-class PreprocessedCache(Protocol):
+class PreprocessedCache(ABC):
     """
     @brief Preprocessed 缓存纯接口 / Preprocessed cache protocol (behavior contract only).
     @note
@@ -204,12 +202,14 @@ class PreprocessedCache(Protocol):
       Preprocessed is "multiple named artifacts + meta", manifest provides stable enumeration.
     """
 
+    @abstractmethod
     def has(self, key: CacheKey) -> bool:
         """
         @brief 是否存在该 key 的 preprocessed 缓存 / Whether preprocessed cache exists for key.
         """
         ...
 
+    @abstractmethod
     def save(
         self,
         key: CacheKey,
@@ -225,6 +225,7 @@ class PreprocessedCache(Protocol):
         """
         ...
 
+    @abstractmethod
     def load_manifest(self, key: CacheKey) -> ArtifactManifest:
         """
         @brief 读取成品清单 / Load manifest.
@@ -246,6 +247,7 @@ class PreprocessedCache(Protocol):
         """
         ...
 
+    @abstractmethod
     def read_meta(self, key: CacheKey) -> PreprocessedCacheMeta:
         """
         @brief 读取 preprocessed 元信息 / Read preprocessed metadata.
@@ -256,6 +258,7 @@ class PreprocessedCache(Protocol):
         """
         ...
 
+    @abstractmethod
     def iter_keys(self, config_name: str | None = None) -> Iterable[CacheKey]:
         """
         @brief 枚举缓存键 / Iterate cache keys.

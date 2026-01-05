@@ -18,8 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from ...utils.logger import get_logger
-from ..configs import LoadedConfig, JobConfig
+from ingest.utils.logger import get_logger
+from ingest.cli.configs import LoadedConfig, JobConfig
 from .interface import (
     Task,
     TaskState,
@@ -28,9 +28,11 @@ from .interface import (
     Diagnostics,
 )
 
-from ...cache.interface import CacheKey
-from ...transform.interface import TransformerSpec, JsTargetSpec
-from ...transform.transformer import Transformer
+from ingest.cache.interface import CacheKey
+from ingest.transform.interface import TransformerSpec, JsTargetSpec
+from ingest.transform.transformer import Transformer
+
+from ingest.cache.hashlib import make_cache_key
 
 _LOG = get_logger(__name__)
 
@@ -76,7 +78,7 @@ class RunJobTask(Task):
         paths = self.loaded.paths
 
         # 延迟 import：避免 import-time 副作用
-        from ... import wiring
+        from ingest import wiring
 
         # -------- caches --------
         raw_cache_cls = wiring.RAW_CACHES.require(cfg.cache_configs.raw.name)
@@ -84,8 +86,8 @@ class RunJobTask(Task):
             cfg.cache_configs.preprocessed.name
         )
 
-        raw_cache = raw_cache_cls(base_dir=paths.raw_root)
-        pre_cache = pre_cache_cls(base_dir=paths.preprocessed_root)
+        raw_cache = raw_cache_cls(**cfg.cache_configs.raw.config)
+        pre_cache = pre_cache_cls(**cfg.cache_configs.preprocessed.config)
 
         # -------- transformer spec --------
         tcfg = cfg.transform_configs
@@ -132,23 +134,27 @@ class RunJobTask(Task):
         _LOG.info("task[%s] run start", self.job.name)
 
         try:
-            from ... import wiring
-
-            cfg = self.loaded.config
+            from ingest import wiring
 
             # -------- source --------
+            # V2：source 封装 config；validate()/fetch() 不再注入 config
             source_cls = wiring.SOURCES.require(self.job.source.name)
             source = source_cls(**self.job.source.config)
 
-            source.validate(self.job.source.config)
+            source.validate()
 
             # -------- fetch & cache raw --------
+            # V2：source.fetch() 直接产出 RawCacheRecord（payload + meta），cache 对齐
             raw_cache = self._transformer.raw_cache  # type: ignore
 
             keys: list[CacheKey] = []
 
-            for raw in source.fetch(self.job.source.config):
-                key = raw_cache.save(raw, config_name=self.loaded.config.profile)
+            for record in source.fetch():
+                key = make_cache_key(
+                    config_name=self.loaded.config.profile,
+                    record=record,
+                )
+                raw_cache.save(key, record)
                 keys.append(key)
 
             self._diagnostics.data["raw_items"] = len(keys)
@@ -176,7 +182,9 @@ class RunJobTask(Task):
                 message=str(e),
                 traceback=traceback.format_exc(),
             )
-            _LOG.error("task[%s] failed: %s\n%s", self.job.name, e, traceback.format_exc())
+            _LOG.error(
+                "task[%s] failed: %s\n%s", self.job.name, e, traceback.format_exc()
+            )
             raise
 
     def close(self) -> None:

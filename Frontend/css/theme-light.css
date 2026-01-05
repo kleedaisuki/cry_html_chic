@@ -1,0 +1,188 @@
+/* ==========================================================================
+   浅色主题样式表
+   ========================================================================== */
+
+/* 主题变量覆盖 */
+:root {
+    /* 背景色 */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+
+    /* 文字颜色 */
+    --text-primary: #1a1a2e;
+    --text-secondary: #6c757d;
+
+    /* 边框颜色 */
+    --border-color: #e9ecef;
+
+    /* 阴影 */
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+
+    /* 面板背景 */
+    --panel-bg: rgba(255, 255, 255, 0.95);
+
+    /* 强调色 */
+    --accent-color: #3182bd;
+
+    /* 成功/警告/错误 */
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --error-color: #dc3545;
+
+    /* 地图暗色叠加 */
+    --map-overlay: rgba(255, 255, 255, 0.1);
+}
+
+/* ==========================================================================
+   深色底图样式覆盖
+   ========================================================================== */
+
+/* 当使用深色地图底图时，需要调整文字颜色 */
+.dark-map {
+    --text-primary: #ffffff;
+    --text-secondary: #adb5bd;
+    --border-color: #495057;
+    --panel-bg: rgba(30, 30, 30, 0.95);
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================================================
+   交通类型颜色（浅色主题）
+   ========================================================================== */
+
+/* MRT - 蓝色系 */
+.mrt-color {
+    --type-color: #3182bd;
+    --type-color-light: #6baed6;
+    --type-color-dark: #08519c;
+}
+
+/* LRT - 绿色系 */
+.lrt-color {
+    --type-color: #31a354;
+    --type-color-light: #74c476;
+    --type-color-dark: #006d2c;
+}
+
+/* Bus - 橙色系 */
+.bus-color {
+    --type-color: #e6550d;
+    --type-color-light: #fdae6b;
+    --type-color-dark: #a50f15;
+}
+
+/* ==========================================================================
+   线路高亮样式
+   ========================================================================== */
+
+.route-line {
+    transition: stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+.route-line:hover {
+    stroke-width: 6 !important;
+    opacity: 0.9;
+}
+
+.route-line.dimmed {
+    opacity: 0.3;
+}
+
+.route-line.highlighted {
+    opacity: 1;
+    stroke-width: 5 !important;
+}
+
+/* ==========================================================================
+   站点标记样式
+   ========================================================================== */
+
+.station-marker {
+    transition: r 0.2s ease;
+}
+
+.station-marker:hover {
+    r: 8;
+}
+
+/* ==========================================================================
+   时间轴样式（浅色主题）
+   ========================================================================== */
+
+#timeline .axis path,
+#timeline .axis line {
+    stroke: var(--border-color);
+}
+
+#timeline .axis text {
+    fill: var(--text-secondary);
+    font-size: 11px;
+}
+
+#timeline .brush .selection {
+    fill: var(--accent-color);
+    fill-opacity: 0.2;
+    stroke: var(--accent-color);
+}
+
+#timeline .handle {
+    fill: var(--accent-color);
+}
+
+/* 当前时间指示线 */
+.current-time-line {
+    stroke: var(--accent-color);
+    stroke-width: 2;
+    stroke-dasharray: 4, 4;
+}
+
+/* 时间轴背景 */
+.timeline-bg {
+    fill: var(--bg-secondary);
+}
+
+/* ==========================================================================
+   侧边栏样式（浅色主题）
+   ========================================================================== */
+
+.sidebar {
+    background: #ffffff;
+}
+
+.route-info strong,
+.current-flow strong {
+    color: #1a1a2e;
+}
+
+.stations-list li {
+    color: #495057;
+}
+
+.stations-list li:hover {
+    background: var(--bg-secondary);
+    margin: 0 -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+/* ==========================================================================
+   播放按钮激活状态
+   ========================================================================== */
+
+.control-btn.active {
+    background: var(--accent-color);
+    color: white;
+}
+
+/* ==========================================================================
+   加载动画（浅色主题）
+   ========================================================================== */
+
+.loading-overlay {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.loading-spinner {
+    border-color: rgba(255, 255, 255, 0.2);
+    border-top-color: white;
+}

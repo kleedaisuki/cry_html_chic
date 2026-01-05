@@ -73,6 +73,7 @@ from ingest.wiring import (
     OPTIMIZERS,
     BACKENDS,
 )
+from ingest.utils.logger import set_log_level
 
 logger = get_logger(__name__)
 
@@ -161,21 +162,18 @@ def cmd_run(args: argparse.Namespace) -> int:
         args.config_name,
         project_root=project_root,
     )
+    set_log_level(getattr(loaded.config, "log_level", "INFO"))
 
     # 覆盖 fail_fast（CLI > config）
     execution = loaded.config.execution
     if args.fail_fast:
-        from dataclasses import replace
-        execution = replace(execution, fail_fast=True)
+        loaded.config.execution.fail_fast = True
     if args.no_fail_fast:
-        from dataclasses import replace
-        execution = replace(execution, fail_fast=False)
+        loaded.config.execution.fail_fast = False
 
     ensure_plugins_loaded(loaded)
 
     jobs = loaded.config.jobs
-    # 使用覆盖后的 execution
-    fail_fast = execution.fail_fast
     if args.jobs:
         jobs = [j for j in jobs if j.name in args.jobs]
 
@@ -198,7 +196,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             import traceback as tb
             logger.error(tb.format_exc())
 
-            if fail_fast:
+            if loaded.config.execution.fail_fast:
                 break
         finally:
             try:
@@ -227,6 +225,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         args.config_name,
         project_root=project_root,
     )
+    set_log_level(getattr(loaded.config, "log_level", "INFO"))
     ensure_plugins_loaded(loaded)
 
     def dump_registry(name: str, reg) -> None:
