@@ -46,12 +46,12 @@ OUTPUT_PATH = FRONTEND_DATA_DIR / "routes.js"
 """
 /**
  * @brief 交通类型默认色 / Default colours by transport type.
- * @note 对齐 export_routes_data.py（subway/light_rail/bus 语义）。/ Aligned with export_routes_data.py.
+ * @note 对齐 export_routes_data.py（mrt/lrt/bus 语义）。/ Aligned with export_routes_data.py.
  */
 """
 TRANSPORT_COLORS: Dict[str, str] = {
-    "subway": "#e41a1c",  # Red - MRT
-    "light_rail": "#ff7f00",  # Orange - LRT
+    "mrt": "#e41a1c",  # Red - MRT
+    "lrt": "#ff7f00",  # Orange - LRT
     "bus": "#4daf4a",  # Green - Bus
 }
 
@@ -78,13 +78,13 @@ ROUTE_NAME_MAP: Dict[str, str] = {
 """
 /**
  * @brief 输入文件列表（route_type, filename）/ Input files list (route_type, filename).
- * @note route_type 取值保持与 export_routes_data.py 一致：subway/light_rail/bus。
+ * @note route_type 取值保持与 export_routes_data.py 一致：mrt/lrt/bus。
  */
 """
 INPUT_FILES: List[Tuple[str, str]] = [
-    ("subway", "routes_mrt.json"),
-    ("light_rail", "routes_lrt.json"),
-    ("bus", "routes_bus.json"),  # 可选：如果存在就导出
+    ("mrt", "routes_mrt.json"),
+    ("lrt", "routes_lrt.json"),
+    ("bus", "routes_bus.json"),
 ]
 
 
@@ -188,14 +188,14 @@ def normalize_route_type(route_type: str) -> str:
      *        Normalize route_type aligned with export_routes_data.py.
      *
      * @param route_type 输入类型 / Input type
-     * @return 标准类型：subway/light_rail/bus / Normalized type
+     * @return 标准类型：mrt/lrt/bus / Normalized type
      */
     """
     rt = (route_type or "").strip().lower()
     if rt in ("mrt", "subway"):
-        return "subway"
+        return "mrt"
     if rt in ("lrt", "light_rail", "lightrail"):
-        return "light_rail"
+        return "lrt"
     if rt in ("bus",):
         return "bus"
     return rt or "bus"
