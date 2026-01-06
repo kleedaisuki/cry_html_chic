@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "profile": "passenger_flow",
+  "log_level": "DEBUG",
+  "paths": {
+    "configs_root": "configs/ingest",
+    "data_root": "data",
+    "raw_root": "data/raw",
+    "preprocessed_root": "data/preprocessed"
+  },
+  "execution": {
+    "parallelism": 4,
+    "strategy": "threads",
+    "fail_fast": true
+  },
+  "cache_configs": {
+    "raw": {
+      "name": "fs_raw",
+      "config": {
+        "base_dir": "data/raw"
+      }
+    },
+    "preprocessed": {
+      "name": "fs_preprocessed",
+      "config": {
+        "base_dir": "data/preprocessed"
+      }
+    }
+  },
+  "transform_configs": {
+    "ir_version": 1,
+    "target": {
+      "js_abi_version": 1,
+      "module_format": "esm",
+      "layout": "single",
+      "path_prefix": "jsonfile/",
+      "options": {}
+    }
+  },
+  "plugins": [
+    "ingest.sources.datamall_linkfile",
+    "ingest.cache.raw",
+    "ingest.cache.preprocess",
+    "ingest.transform.front.lta_csv_payload",
+    "ingest.transform.optimizer.plain_optimizer",
+    "ingest.transform.optimizer.lta_train_optimizer",
+    "ingest.transform.output.json_output"
+  ],
+  "jobs": [
+    {
+      "name": "passenger_flow_bus",
+      "source": {
+        "name": "datamall_linkfile",
+        "config": {
+          "account_key": "api_key_here",
+          "dataset": "pv_bus"
+        }
+      },
+      "transform": {
+        "frontend": {
+          "name": "lta_csv_payload",
+          "config": {
+            "schema": "pv_node"
+          }
+        },
+        "optimizer": {
+          "name": "plain",
+          "config": {}
+        },
+        "backend": {
+          "name": "json_output",
+          "config": {
+            "stem": "passenger_flow_bus"
+          }
+        }
+      }
+    },
+    {
+      "name": "passenger_flow_train",
+      "source": {
+        "name": "datamall_linkfile",
+        "config": {
+          "account_key": "api_key_here",
+          "dataset": "pv_train"
+        }
+      },
+      "transform": {
+        "frontend": {
+          "name": "lta_csv_payload",
+          "config": {
+            "schema": "pv_node"
+          }
+        },
+        "optimizer": {
+          "name": "lta_train_optimizer",
+          "config": {
+            "schema": "pv_node",
+            "fields": {
+              "year_month": "YEAR_MONTH",
+              "day_type": "DAY_TYPE",
+              "pt_type": "PT_TYPE",
+              "pt_code": "PT_CODE",
+              "hour": "TIME_PER_HOUR"
+            },
+            "keep_non_train": false
+          }
+        },
+        "backend": {
+          "name": "json_output",
+          "config": {
+            "stem": "passenger_flow_train"
+          }
+        }
+      }
+    }
+  ]
+}
