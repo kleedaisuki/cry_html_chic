@@ -110,18 +110,20 @@ cry_html_chic/
 │       │   └── preprocessed.py             # 缓存成品数据
 │       │
 │       ├── transform/
-│       │   ├── interface.py                # 算子接口，通过继承定义新的算子
-│       │   ├── transformer.py              # 管理 raw -> IR (Python builtin) -> preprocessed
-│       │   ├── front/                      # operators for raw -> IR
-│       │   │   ├── json_payload.py         # 解析被理解为 JSON 的 bytes
-│       │   │   ├── osm_json_payload.py     # 解析被理解为 OSM JSON 的 bytes                
+│       │   ├── interface.py                        # 算子接口，通过继承定义新的算子
+│       │   ├── transformer.py                      # 管理 raw -> IR (Python builtin) -> preprocessed
+│       │   ├── front/                              # operators for raw -> IR
+│       │   │   ├── json_payload.py                 # 解析被理解为 JSON 的 bytes
+│       │   │   ├── osm_json_payload.py             # 解析被理解为 OSM JSON 的 bytes    
+│       │   │   ├── lta_headless_csv_payload.py     # 解析被理解为 LTA headless CSV 的 bytes                
 │       │   │   └── ... 
-│       │   ├── optimizer/                  # operators for cleaning
-│       │   │   ├── osm_json_optimizer.py   # osm_json 的提取器
-│       │   │   ├── plain_optimizer.py      # 什么都不做，单纯传递 IR 的优化器               
+│       │   ├── optimizer/                              # operators for cleaning
+│       │   │   ├── osm_json_optimizer.py               # osm_json 的提取器
+│       │   │   ├── plain_optimizer.py                  # 什么都不做，单纯传递 IR 的优化器
+│       │   │   ├── lta_train_optimizer.py              # 将 train 按字段分桶          
 │       │   │   └── ...       
 │       │   └── output/                     # operators for IR -> preprocessed
-│       │       ├── js_constants.py         # 输出为 JSON 的编译后端
+│       │       ├── json_output.py         # 输出为 JSON 的编译后端
 │       │       ├── js_constants.py         # 输出为 js 常量的编译后端
 │       │       └── ... 
 │       │   
