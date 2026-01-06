@@ -1,0 +1,111 @@
+{
+    "version": 1,
+    "profile": "sg_heatmap",
+    "log_level": "DEBUG",
+    "paths": {
+        "configs_root": "configs/ingest",
+        "data_root": "data",
+        "raw_root": "data/raw",
+        "preprocessed_root": "data/preprocessed"
+    },
+    "execution": {
+        "parallelism": 4,
+        "strategy": "threads",
+        "fail_fast": true
+    },
+    "cache_configs": {
+        "raw": {
+            "name": "fs_raw",
+            "config": {
+                "base_dir": "data/raw"
+            }
+        },
+        "preprocessed": {
+            "name": "fs_preprocessed",
+            "config": {
+                "base_dir": "data/preprocessed"
+            }
+        }
+    },
+    "transform_configs": {
+        "ir_version": 1,
+        "target": {
+            "js_abi_version": 1,
+            "module_format": "esm",
+            "layout": "single",
+            "path_prefix": "jsonfile/",
+            "options": {}
+        }
+    },
+    "plugins": [
+        "ingest.sources.data_gov_sg",
+        "ingest.cache.raw",
+        "ingest.cache.preprocess",
+        "ingest.transform.front.json_payload",
+        "ingest.transform.optimizer.plain_optimizer",
+        "ingest.transform.optimizer.data_gov_sg_heatmap_optimizer",
+        "ingest.transform.output.json_output"
+    ],
+    "jobs": [
+        {
+            "name": "sg_pop_pa_subzone_census2020",
+            "source": {
+                "name": "data_gov_sg.datastore_search",
+                "config": {
+                    "resource_id": "d_e7ae90176a68945837ad67892b898466",
+                    "query": {
+                        "limit": 10000
+                    },
+                    "max_rows": 10000,
+                    "user_agent": "cry_html_chic/ingest (sg_heatmap)"
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "json_payload",
+                    "config": {}
+                },
+                "optimizer": {
+                    "name": "plain",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "json_output",
+                    "config": {
+                        "out_name": "sg_pop_pa_subzone_census2020.json"
+                    }
+                }
+            }
+        },
+        {
+            "name": "sg_planning_area_boundary_mp2019_poll",
+            "source": {
+                "name": "data_gov_sg.download",
+                "config": {
+                    "download_url": "https://api-open.data.gov.sg/v1/public/api/datasets/d_4765db0e87b9c86336792efe8a1f7a66/poll-download",
+                    "method": "GET",
+                    "headers": {
+                        "Accept": "application/json"
+                    },
+                    "user_agent": "cry_html_chic/ingest (sg_heatmap)"
+                }
+            },
+            "transform": {
+                "frontend": {
+                    "name": "json_payload",
+                    "config": {}
+                },
+                "optimizer": {
+                    "name": "plain",
+                    "config": {}
+                },
+                "backend": {
+                    "name": "json_output",
+                    "config": {
+                        "out_name": "sg_planning_area_boundary_mp2019_poll.json"
+                    }
+                }
+            }
+        }
+    ]
+}
