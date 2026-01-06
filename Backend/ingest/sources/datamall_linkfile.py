@@ -93,7 +93,6 @@ class DataMallLinkFileSource(DataSource):
         keep_downloaded: bool = True,
         keep_extracted: bool = True,
         max_bytes: int = 200 * 1024 * 1024,  # 200MB
-        log_name: Optional[str] = None,
     ) -> None:
         """
         /**
@@ -134,10 +133,6 @@ class DataMallLinkFileSource(DataSource):
         self._keep_downloaded = bool(keep_downloaded)
         self._keep_extracted = bool(keep_extracted)
         self._max_bytes = int(max_bytes)
-
-        # 模块单例 _LOG + getChild 形成清晰日志树；log_name 可覆盖用于定位多实例
-        base = _LOG if not log_name else get_logger(log_name)
-        _LOG = base.getChild(f"{self.name()}.{self._dataset}")
 
     # ------------------------------------------------------------
     # V2 interface
