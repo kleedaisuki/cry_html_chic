@@ -69,6 +69,68 @@ const LayerManager = (function () {
     let selectedRouteId = null;
 
     // -----------------------------
+    // Helper: Coordinate utilities / 辅助函数：坐标工具
+    // -----------------------------
+
+    /**
+     * @brief 计算两点之间的距离（米）/ Calculate distance between two points in meters.
+     * @param {number} lat1 - 第一个点的纬度 / Latitude of first point.
+     * @param {number} lon1 - 第一个点的经度 / Longitude of first point.
+     * @param {number} lat2 - 第二个点的纬度 / Latitude of second point.
+     * @param {number} lon2 - 第二个点的经度 / Longitude of second point.
+     * @return {number} 距离（米）/ Distance in meters.
+     */
+    function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+        const R = 6371000; // 地球半径（米）/ Earth's radius in meters.
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    /**
+     * @brief 检测坐标跳跃并分割坐标数组 / Split coordinates by detecting jumps.
+     * @param {Array<Array<number>>} coords - 原始坐标数组 / Original coordinates array.
+     * @param {number} maxJumpMeters - 最大跳跃距离（米），默认 5000 米 / Max jump distance in meters.
+     * @return {Array<Array<Array<number>>>} 分割后的坐标段数组 / Array of coordinate segments.
+     * @description 当两个相邻坐标点之间的距离超过阈值时，认为是线路段跳跃，在该处断开。
+     */
+    function splitCoordinatesByJump(coords, maxJumpMeters = 5000) {
+        if (!coords || coords.length < 2) return [coords];
+
+        const segments = [];
+        let currentSegment = [coords[0]];
+
+        for (let i = 1; i < coords.length; i++) {
+            const prev = coords[i - 1];
+            const curr = coords[i];
+
+            // 计算两点之间的距离（米）
+            const distance = getDistanceFromLatLonInMeters(
+                prev[1], prev[0],  // [lon, lat] -> lat, lon
+                curr[1], curr[0]
+            );
+
+            if (distance > maxJumpMeters) {
+                // 距离过大，认为是新的路段，在此断开
+                segments.push(currentSegment);
+                currentSegment = [curr];
+            } else {
+                currentSegment.push(curr);
+            }
+        }
+
+        if (currentSegment.length > 0) {
+            segments.push(currentSegment);
+        }
+
+        return segments;
+    }
+
+    // -----------------------------
     // Init / 初始化
     // -----------------------------
 
@@ -234,8 +296,28 @@ const LayerManager = (function () {
             return null;
         }
 
+        // 检测坐标是否需要分割（处理线路拼接导致的"幽灵线"问题）
+        const originalCoords = geojson.geometry?.coordinates;
+        let processedGeoJSON = geojson;
+
+        if (originalCoords && Array.isArray(originalCoords) && originalCoords.length > 1) {
+            const segments = splitCoordinatesByJump(originalCoords, 3000);
+
+            if (segments.length > 1) {
+                // 转换为 MultiLineString 以避免画出"幽灵线"
+                processedGeoJSON = {
+                    type: 'Feature',
+                    properties: geojson.properties || {},
+                    geometry: {
+                        type: 'MultiLineString',
+                        coordinates: segments
+                    }
+                };
+            }
+        }
+
         // Create layer
-        const layer = L.geoJSON(geojson, {
+        const layer = L.geoJSON(processedGeoJSON, {
             // IMPORTANT: do NOT hardcode gray here; style is projected from RouteState.
             style: () => ({
                 color: "#cccccc", // temporary until first projection
