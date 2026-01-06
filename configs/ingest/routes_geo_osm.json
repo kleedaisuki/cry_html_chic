@@ -144,6 +144,9 @@
                     "endpoint_url": "https://overpass-api.de/api/interpreter",
                     "query": "[out:json][timeout:180];\narea[name=\"Singapore\"]->.a;\n(\n  relation[\"type\"=\"route\"][\"route\"=\"bus\"](area.a);\n);\nout body geom;",
                     "timeout_sec": 240,
+                    "retry_max": 5,
+                    "retry_backoff_sec": 3.0,
+                    "retry_jitter_sec": 1.0,
                     "user_agent": "SG-TRANSIT-VIS/ingest",
                     "sleep_sec": 2.0
                 }

@@ -18,6 +18,7 @@ import json
 import os
 import secrets
 import shutil
+import time
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, Mapping, Optional, Sequence
 
@@ -322,7 +323,19 @@ class FileSystemPreprocessedCache(PreprocessedCache):
 
             # tmp -> final（目录 rename）
             final_dir.parent.mkdir(parents=True, exist_ok=True)
-            os.rename(tmp_dir, final_dir)
+
+            # 添加重试机制，处理 Windows 文件句柄延迟释放问题
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    os.rename(tmp_dir, final_dir)
+                    break
+                except PermissionError:
+                    if attempt < max_retries - 1:
+                        time.sleep(0.2)  # 等待200ms
+                        continue
+                    # 重试失败，使用 shutil.move 作为备选方案
+                    shutil.move(tmp_dir, final_dir)
 
             _LOG.info(
                 "preprocessed cache saved: dir=%s files=%d",
