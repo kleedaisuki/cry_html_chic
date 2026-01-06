@@ -1,0 +1,32 @@
+{
+  "key": {
+    "config_name": "routes-geo-osm",
+    "content_hash": "fdd1fafa78cf142c8bd51525a7cd36724e1a2971ac5ed5efa2676f52dd13d6d7",
+    "fetched_at_iso": "2026-01-05T16:35:39Z"
+  },
+  "preprocessed": {
+    "built_at_iso": "2026-01-05T16:35:39Z",
+    "extra": {
+      "diagnostics": {
+        "artifact_names": [
+          "constants/routes_mrt.json"
+        ],
+        "artifacts_count": 1
+      },
+      "transform": {
+        "backend": "json_output@1.0.0",
+        "extra": {
+          "config_name": "routes-geo-osm",
+          "content_hash": "fdd1fafa78cf142c8bd51525a7cd36724e1a2971ac5ed5efa2676f52dd13d6d7",
+          "raw_fetched_at_iso": "2026-01-05T16:35:39+00:00"
+        },
+        "frontend": "osm_json@1.0.0",
+        "ir_version": 1,
+        "js_abi_version": 1,
+        "optimizer": "osm_json_optimzer@1.0.0"
+      }
+    },
+    "schema_version": 1
+  },
+  "version": 1
+}
