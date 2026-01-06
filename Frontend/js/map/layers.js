@@ -421,18 +421,19 @@ const LayerManager = (function () {
             rs.layer.bringToFront();
         }
 
-        // de-emphasize others (data-driven opacity)
+        // 隐藏其他所有线路
         routesById.forEach((r, id) => {
             if (id !== routeId) {
                 r.ui.selected = false;
                 r.ui.hovered = false;
-                r.ui.dimmed = true;
-                r.lastStyle = null; // force apply through projectStyle()
+                r.ui.dimmed = false;
+                r.lastStyle = null;
+                // 从地图移除
+                if (routeLayerGroup.hasLayer(r.layer)) {
+                    routeLayerGroup.removeLayer(r.layer);
+                }
             }
         });
-
-        // 统一重新计算所有线路样式
-        invalidateAll();
     }
 
     /**
@@ -451,13 +452,15 @@ const LayerManager = (function () {
             selectedRouteId = null;
         }
 
-        // 清除所有线路的 dimmed 状态
+        // 恢复所有线路到地图
         routesById.forEach((r) => {
             r.ui.dimmed = false;
             r.lastStyle = null;
+            if (!routeLayerGroup.hasLayer(r.layer)) {
+                routeLayerGroup.addLayer(r.layer);
+            }
         });
 
-        // restore others
         invalidateAll();
     }
 
