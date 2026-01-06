@@ -3,26 +3,44 @@ from __future__ import annotations
 """
 /**
  * @file lta_train_optimizer.py
- * @brief 将 Train Passenger Volume 记录按 MRT/LRT 分桶，并生成稳定主键 / Bucket Train PV records into MRT/LRT and generate stable primary keys.
+ * @brief 将 Train Passenger Volume（CSV with header）记录按 MRT/LRT 分桶，并生成稳定主键 / Bucket train passenger volume (header CSV) into MRT/LRT and generate stable primary keys.
+ *
+ * 新契约（重要）/ New contract (important):
+ * - 本优化器只接受 lta_csv_payload 的输出（带 header 的 rows）；
+ *   This optimizer only accepts lta_csv_payload output (header rows).
  *
  * 输入 / Input:
- * - IRModule from lta_headless_csv_payload:
+ * - IRModule from lta_csv_payload:
  *   {
- *     "ir_kind": "lta_headless_csv_payload",
- *     "provenance": {...},
- *     "data": { "schema": "pv_node"|"pv_od", "records": [ ... ] }
+ *     "kind": "json_payload",
+ *     "payload": {
+ *       "kind": "lta_csv",
+ *       "meta": {...},
+ *       "rows": [ {<col>: <value>, ...}, ... ]
+ *     }
  *   }
  *
+ * 配置 / Config:
+ * - schema (str): "pv_node" | "pv_od"   (required)
+ * - fields (dict): column mapping       (required)
+ *   - pv_node required keys:
+ *     year_month, day_type, pt_type, pt_code, hour
+ *   - pv_od required keys:
+ *     year_month, day_type, pt_type, origin_pt_code, dest_pt_code, hour
+ * - keep_non_train (bool): keep non-TRAIN rows (default False)
+ * - lrt_prefixes (list[str]): override LRT prefixes (optional)
+ *
  * 输出 / Output:
- * - IRModule:
+ * - json_payload:
  *   {
- *     "ir_kind": "lta_train_bucketed",
- *     "provenance": {...},
- *     "data": {
- *        "schema": "...",
- *        "mrt": [ ... ],
- *        "lrt": [ ... ],
- *        "stats": {...}
+ *     "kind": "json_payload",
+ *     "payload": {
+ *       "kind": "lta_train_bucketed",
+ *       "meta": {...},
+ *       "schema": "pv_node"|"pv_od",
+ *       "mrt": [...],
+ *       "lrt": [...],
+ *       "stats": {...}
  *     }
  *   }
  *
@@ -64,50 +82,93 @@ def _as_str(v: JsonValue, *, default: str = "") -> str:
     return v if isinstance(v, str) else default
 
 
-def _as_int(v: JsonValue, *, default: int = 0) -> int:
+def _require_dict(v: JsonValue, *, err: str) -> dict[str, JsonValue]:
     """
     /**
-     * @brief 保守转整数 / Conservative int cast.
+     * @brief 强制要求 dict / Require dict.
      * @param v 输入值 / Input value.
-     * @param default 默认值 / Default value.
-     * @return 整数 / Integer.
+     * @param err 错误信息 / Error message.
+     * @return dict / dict.
      */
     """
-    if isinstance(v, int) and not isinstance(v, bool):
-        return v
-    return default
+    if not isinstance(v, dict):
+        raise SchemaMismatchError(err)
+    return v
+
+
+def _require_list(v: JsonValue, *, err: str) -> list[JsonValue]:
+    """
+    /**
+     * @brief 强制要求 list / Require list.
+     * @param v 输入值 / Input value.
+     * @param err 错误信息 / Error message.
+     * @return list / list.
+     */
+    """
+    if not isinstance(v, list):
+        raise SchemaMismatchError(err)
+    return v
+
+
+def _parse_hour(v: JsonValue) -> int:
+    """
+    /**
+     * @brief 解析小时字段 / Parse hour field.
+     *
+     * 支持 / Supports:
+     * - "7", "07", 7
+     * - "07:00", "7:00"
+     *
+     * @param v 输入 / Input.
+     * @return 0..23 / 0..23.
+     */
+    """
+    if isinstance(v, int):
+        h = v
+    elif isinstance(v, str):
+        s = v.strip()
+        # Extract leading integer from strings like "07:00"
+        m = re.match(r"^\s*(\d{1,2})", s)
+        if not m:
+            return -1
+        h = int(m.group(1))
+    else:
+        return -1
+
+    if 0 <= h <= 23:
+        return h
+    return -1
 
 
 def _extract_prefix(code: str) -> str:
     """
     /**
-     * @brief 提取站点 code 的字母前缀 / Extract alphabetic prefix of a station code.
+     * @brief 提取站点码前缀 / Extract station code prefix.
      *
      * 例 / Examples:
-     * - "EW14" -> "EW"
-     * - "NS26" -> "NS"
-     * - "BP1"  -> "BP"
+     * - "BP1" -> "BP"
+     * - "NE1" -> "NE"
+     * - "SW5" -> "SW"
      *
-     * @param code 站点码片段 / Code component.
-     * @return 前缀（大写）/ Prefix (uppercased).
+     * @param code 站点码 / Station code.
+     * @return 前缀 / Prefix.
      */
     """
-    s = (code or "").strip().upper()
-    m = re.match(r"^([A-Z]+)", s)
+    m = re.match(r"^([A-Z]+)", code.strip().upper())
     return m.group(1) if m else ""
 
 
-def _is_lrt_station(pt_code: str) -> bool:
+def _is_lrt_code(pt_code: str) -> bool:
     """
     /**
-     * @brief 判断 PT_CODE 是否属于 LRT / Decide whether a PT_CODE belongs to LRT.
+     * @brief 判断是否为 LRT 站点码 / Decide whether a station code belongs to LRT.
      *
      * 规则 / Rule:
-     * - 将复合换乘码按 '-' 拆分，任一 component 前缀属于 {BP, SE, SW, PE, PW} 即认为是 LRT。
-     *   Split by '-', if any component prefix in {BP, SE, SW, PE, PW}, classify as LRT.
+     * - 将复合换乘码按 '-' 拆分，任一 component 前缀属于 LRT 前缀集合即认为是 LRT。
+     *   Split by '-', if any component prefix in LRT prefixes, classify as LRT.
      *
      * @param pt_code 站点码（可能含 '-'）/ Station code (may contain '-').
-     * @return True= LRT, False= MRT / True=LRT, False=MRT.
+     * @return True=LRT, False=MRT / True=LRT, False=MRT.
      */
     """
     if not pt_code:
@@ -125,6 +186,12 @@ def _pk_pv_node(year_month: str, day_type: str, hour: int, pt_code: str) -> str:
      * @brief 生成 pv_node 主键 / Generate pk for pv_node.
      *
      * pk := YEAR_MONTH|DAY_TYPE|HH|TRAIN|PT_CODE
+     *
+     * @param year_month YYYYMM / YYYYMM.
+     * @param day_type DAY_TYPE / DAY_TYPE.
+     * @param hour 0..23 / 0..23.
+     * @param pt_code 站点码 / Station code.
+     * @return 主键 / Primary key.
      */
     """
     return f"{year_month}|{day_type}|{hour:02d}|TRAIN|{pt_code}"
@@ -135,10 +202,60 @@ def _pk_pv_od(year_month: str, day_type: str, hour: int, origin: str, dest: str)
     /**
      * @brief 生成 pv_od 主键 / Generate pk for pv_od.
      *
-     * pk := YEAR_MONTH|DAY_TYPE|HH|TRAIN|ORIGIN->DEST
+     * pk := YEAR_MONTH|DAY_TYPE|HH|TRAIN|ORIGIN|DEST
+     *
+     * @param year_month YYYYMM / YYYYMM.
+     * @param day_type DAY_TYPE / DAY_TYPE.
+     * @param hour 0..23 / 0..23.
+     * @param origin 起点码 / Origin code.
+     * @param dest 终点码 / Destination code.
+     * @return 主键 / Primary key.
      */
     """
-    return f"{year_month}|{day_type}|{hour:02d}|TRAIN|{origin}->{dest}"
+    return f"{year_month}|{day_type}|{hour:02d}|TRAIN|{origin}|{dest}"
+
+
+def _require_fields(
+    fields: Mapping[str, JsonValue], keys: Sequence[str]
+) -> dict[str, str]:
+    """
+    /**
+     * @brief 校验并提取字段映射 / Validate and extract field mapping.
+     *
+     * @param fields 配置里的 fields / fields in config.
+     * @param keys 必需键 / required keys.
+     * @return str->str mapping / str->str mapping.
+     */
+    """
+    out: dict[str, str] = {}
+    for k in keys:
+        v = fields.get(k)
+        if not isinstance(v, str) or not v.strip():
+            raise SchemaMismatchError(
+                f"lta_train_optimizer: config.fields['{k}'] must be a non-empty string"
+            )
+        out[k] = v.strip()
+    return out
+
+
+def _get_cell(row: Mapping[str, JsonValue], col: str) -> JsonValue:
+    """
+    /**
+     * @brief 取列值（支持大小写容错）/ Get column value (case-insensitive fallback).
+     *
+     * @param row 行 dict / row dict.
+     * @param col 列名 / column name.
+     * @return 值 / value.
+     */
+    """
+    if col in row:
+        return row[col]
+    # case-insensitive fallback
+    col_u = col.upper()
+    for k, v in row.items():
+        if isinstance(k, str) and k.upper() == col_u:
+            return v
+    return None
 
 
 # ============================================================
@@ -150,16 +267,16 @@ def _pk_pv_od(year_month: str, day_type: str, hour: int, origin: str, dest: str)
 class LtaTrainOptimizer(Optimizer):
     """
     /**
-     * @brief LTA Train 分桶优化器 / LTA train bucketing optimizer.
+     * @brief LTA Train 分桶优化器（header CSV）/ LTA train bucketing optimizer (header CSV).
      *
      * @note
-     * - 输入必须是 lta_headless_csv_payload 的 IR。
-     *   Input must be IR from lta_headless_csv_payload.
+     * - 输入必须是 lta_csv_payload 形态（module.kind=json_payload, payload.kind=lta_csv）。
+     *   Input must be lta_csv_payload shape (module.kind=json_payload, payload.kind=lta_csv).
      */
     """
 
     name: str = "lta_train_optimizer"
-    version: str = "0.1.0"
+    version: str = "0.2.0"
 
     def optimize(
         self, module: IRModule, *, config: Mapping[str, JsonValue]
@@ -170,41 +287,68 @@ class LtaTrainOptimizer(Optimizer):
          *
          * @param module 输入 IRModule / Input IRModule.
          * @param config 优化器配置 / Optimizer config.
-         *        - keep_non_train (bool): 是否保留非 TRAIN 记录（默认 False）
-         *          Keep non-TRAIN records (default False).
-         *        - lrt_prefixes (list[str]): 覆盖默认 LRT 前缀集合（可选）
-         *          Override LRT prefixes (optional).
-         *
          * @return 输出 IRModule / Output IRModule.
          *
          * @throws SchemaMismatchError 输入结构不符合预期 / Input structure mismatch.
+         * @throws InvariantViolationError 不变量被破坏 / Invariant violation.
          */
         """
         if not isinstance(module, dict):
             raise SchemaMismatchError("lta_train_optimizer: IRModule must be a dict")
 
-        if module.get("ir_kind") != "lta_headless_csv_payload":
+        # ---- require lta_csv_payload shape ----
+        if module.get("kind") != "json_payload":
             raise SchemaMismatchError(
-                f"lta_train_optimizer: expected ir_kind='lta_headless_csv_payload', got {module.get('ir_kind')!r}"
+                "lta_train_optimizer: expected module.kind='json_payload'"
             )
 
-        data = module.get("data")
-        if not isinstance(data, dict):
-            raise SchemaMismatchError("lta_train_optimizer: module.data must be a dict")
+        payload = _require_dict(
+            module.get("payload"),
+            err="lta_train_optimizer: expected module.payload to be a dict",
+        )
+        if payload.get("kind") != "lta_csv":
+            raise SchemaMismatchError(
+                "lta_train_optimizer: expected payload.kind='lta_csv'"
+            )
 
-        schema = _as_str(data.get("schema"), default="").strip().lower()
+        rows = _require_list(
+            payload.get("rows"),
+            err="lta_train_optimizer: expected payload.rows to be a list",
+        )
+        if len(rows) > 0 and not isinstance(rows[0], dict):
+            raise SchemaMismatchError(
+                "lta_train_optimizer: expected header CSV rows: List[Dict[str, JsonValue]] (not headless)"
+            )
+
+        # ---- config knobs ----
+        schema = _as_str(config.get("schema"), default="").strip().lower()
         if schema not in ("pv_node", "pv_od"):
             raise SchemaMismatchError(
-                f"lta_train_optimizer: expected schema in ('pv_node','pv_od'), got {schema!r}"
+                "lta_train_optimizer: config.schema must be 'pv_node' or 'pv_od'"
             )
 
-        records = data.get("records")
-        if not isinstance(records, list):
-            raise SchemaMismatchError(
-                "lta_train_optimizer: data.records must be a list"
+        fields_cfg = _require_dict(
+            config.get("fields"),
+            err="lta_train_optimizer: config.fields must be a dict",
+        )
+
+        if schema == "pv_node":
+            f = _require_fields(
+                fields_cfg, ["year_month", "day_type", "pt_type", "pt_code", "hour"]
+            )
+        else:
+            f = _require_fields(
+                fields_cfg,
+                [
+                    "year_month",
+                    "day_type",
+                    "pt_type",
+                    "origin_pt_code",
+                    "dest_pt_code",
+                    "hour",
+                ],
             )
 
-        # --- config knobs ---
         keep_non_train = bool(config.get("keep_non_train", False))
 
         # Allow overriding prefixes
@@ -219,104 +363,107 @@ class LtaTrainOptimizer(Optimizer):
         lrt_out: list[dict[str, JsonValue]] = []
 
         stats: MutableMapping[str, JsonValue] = {
-            "input_rows": len(records),
+            "input_rows": len(rows),
             "kept_rows": 0,
             "train_rows": 0,
             "non_train_rows": 0,
             "mrt_rows": 0,
             "lrt_rows": 0,
-            "missing_pt_code_rows": 0,
+            "mixed_rows": 0,  # OD only: MRT<->LRT
+            "missing_code_rows": 0,
+            "bad_hour_rows": 0,
         }
 
-        for r in records:
+        for r in rows:
             if not isinstance(r, dict):
                 # 上游契约不应发生；这里宁可抛错，避免 silent corruption
                 raise InvariantViolationError(
-                    "lta_train_optimizer: record must be a dict"
+                    "lta_train_optimizer: row must be a dict (header CSV)"
                 )
 
-            pt_type = _as_str(r.get("pt_type"), default="").strip().upper()
-
+            # ---- PT_TYPE gating (optional) ----
+            pt_type = _as_str(_get_cell(r, f["pt_type"]), default="").strip().upper()
             if pt_type != "TRAIN":
-                stats["non_train_rows"] = (
-                    _as_int(stats["non_train_rows"], default=0) + 1
-                )
-                if keep_non_train:
-                    # 保留原样，但不分桶；统一塞到 mrt（避免下游意外缺 key）
-                    mrt_out.append(dict(r))
-                    stats["kept_rows"] = _as_int(stats["kept_rows"], default=0) + 1
-                continue
-
-            stats["train_rows"] = _as_int(stats["train_rows"], default=0) + 1
-
-            year_month = _as_str(r.get("year_month"), default="")
-            day_type = _as_str(r.get("day_type"), default="")
-            hour = _as_int(r.get("hour"), default=-1)
-
-            if schema == "pv_node":
-                pt_code = _as_str(r.get("pt_code"), default="").strip().upper()
-                if not pt_code:
-                    stats["missing_pt_code_rows"] = (
-                        _as_int(stats["missing_pt_code_rows"], default=0) + 1
-                    )
-                    # 没 code 无法分桶：默认归 mrt（保守）
-                    out = dict(r)
-                    out["pk"] = _pk_pv_node(
-                        year_month, day_type, hour if hour >= 0 else 0, pt_code
-                    )
-                    mrt_out.append(out)
-                    stats["mrt_rows"] = _as_int(stats["mrt_rows"], default=0) + 1
-                    stats["kept_rows"] = _as_int(stats["kept_rows"], default=0) + 1
+                stats["non_train_rows"] = int(stats["non_train_rows"]) + 1
+                if not keep_non_train:
                     continue
 
-                out2 = dict(r)
-                out2["pk"] = _pk_pv_node(
-                    year_month, day_type, hour if hour >= 0 else 0, pt_code
-                )
-
-                if _is_lrt_station(pt_code):
-                    lrt_out.append(out2)
-                    stats["lrt_rows"] = _as_int(stats["lrt_rows"], default=0) + 1
-                else:
-                    mrt_out.append(out2)
-                    stats["mrt_rows"] = _as_int(stats["mrt_rows"], default=0) + 1
-
-                stats["kept_rows"] = _as_int(stats["kept_rows"], default=0) + 1
+            # ---- common fields ----
+            year_month = _as_str(_get_cell(r, f["year_month"]), default="").strip()
+            day_type = _as_str(_get_cell(r, f["day_type"]), default="").strip().upper()
+            hour = _parse_hour(_get_cell(r, f["hour"]))
+            if hour < 0:
+                stats["bad_hour_rows"] = int(stats["bad_hour_rows"]) + 1
                 continue
 
-            # schema == "pv_od"
-            origin = _as_str(r.get("origin_pt_code"), default="").strip().upper()
-            dest = _as_str(r.get("destination_pt_code"), default="").strip().upper()
+            out_row = dict(r)  # shallow copy
+            out_row["_mode"] = "TRAIN"
+            out_row["_schema"] = schema
+            out_row["_hour"] = hour
 
-            out3 = dict(r)
-            out3["pk"] = _pk_pv_od(
-                year_month, day_type, hour if hour >= 0 else 0, origin, dest
-            )
+            if schema == "pv_node":
+                pt_code = (
+                    _as_str(_get_cell(r, f["pt_code"]), default="").strip().upper()
+                )
+                if not pt_code:
+                    stats["missing_code_rows"] = int(stats["missing_code_rows"]) + 1
+                    continue
 
-            # OD：只要 origin 或 dest 任一为 LRT，就归 LRT（保守，避免 LRT OD 被分到 MRT）
-            if _is_lrt_station(origin) or _is_lrt_station(dest):
-                lrt_out.append(out3)
-                stats["lrt_rows"] = _as_int(stats["lrt_rows"], default=0) + 1
+                out_row["_pt_code"] = pt_code
+                out_row["_pk"] = _pk_pv_node(year_month, day_type, hour, pt_code)
+
+                is_lrt = _is_lrt_code(pt_code)
+                if is_lrt:
+                    lrt_out.append(out_row)
+                    stats["lrt_rows"] = int(stats["lrt_rows"]) + 1
+                else:
+                    mrt_out.append(out_row)
+                    stats["mrt_rows"] = int(stats["mrt_rows"]) + 1
+
             else:
-                mrt_out.append(out3)
-                stats["mrt_rows"] = _as_int(stats["mrt_rows"], default=0) + 1
+                origin = (
+                    _as_str(_get_cell(r, f["origin_pt_code"]), default="")
+                    .strip()
+                    .upper()
+                )
+                dest = (
+                    _as_str(_get_cell(r, f["dest_pt_code"]), default="").strip().upper()
+                )
+                if not origin or not dest:
+                    stats["missing_code_rows"] = int(stats["missing_code_rows"]) + 1
+                    continue
 
-            stats["kept_rows"] = _as_int(stats["kept_rows"], default=0) + 1
+                out_row["_origin"] = origin
+                out_row["_dest"] = dest
+                out_row["_pk"] = _pk_pv_od(year_month, day_type, hour, origin, dest)
 
-        # provenance：继承上游，并标注本优化器
-        prov_in = module.get("provenance")
-        prov: dict[str, JsonValue] = dict(prov_in) if isinstance(prov_in, dict) else {}
-        prov["optimizer"] = {"name": self.name, "version": self.version}
-        prov["lrt_prefixes"] = sorted(list(_LRT_PREFIXES))
+                o_lrt = _is_lrt_code(origin)
+                d_lrt = _is_lrt_code(dest)
+                if o_lrt != d_lrt:
+                    stats["mixed_rows"] = int(stats["mixed_rows"]) + 1
 
-        out_module: IRModule = {
-            "ir_kind": "lta_train_bucketed",
-            "provenance": prov,
-            "data": {
-                "schema": schema,
-                "mrt": mrt_out,
-                "lrt": lrt_out,
-                "stats": dict(stats),
-            },
+                # Bucket rule: any LRT endpoint => LRT
+                if o_lrt or d_lrt:
+                    lrt_out.append(out_row)
+                    stats["lrt_rows"] = int(stats["lrt_rows"]) + 1
+                else:
+                    mrt_out.append(out_row)
+                    stats["mrt_rows"] = int(stats["mrt_rows"]) + 1
+
+            stats["kept_rows"] = int(stats["kept_rows"]) + 1
+            if pt_type == "TRAIN":
+                stats["train_rows"] = int(stats["train_rows"]) + 1
+
+        meta = payload.get("meta")
+        out_payload: dict[str, JsonValue] = {
+            "kind": "lta_train_bucketed",
+            "meta": meta if isinstance(meta, dict) else {},
+            "schema": schema,
+            "mrt": mrt_out,
+            "lrt": lrt_out,
+            "stats": dict(stats),
+            "lrt_prefixes": sorted(list(_LRT_PREFIXES)),
         }
+
+        out_module: IRModule = {"kind": "json_payload", "payload": out_payload}
         return out_module
