@@ -1,0 +1,20 @@
+{
+  "checksums": {
+    "constants/routes_mrt.json": {
+      "algo": "sha256",
+      "hex": "6feec3cd666a1cc9e9abb396e7a065deadacbeed16c9ed6e64b0f02d54394188",
+      "size_bytes": 693747
+    }
+  },
+  "key": {
+    "config_name": "routes-geo-osm",
+    "content_hash": "fdd1fafa78cf142c8bd51525a7cd36724e1a2971ac5ed5efa2676f52dd13d6d7",
+    "fetched_at_iso": "2026-01-05T16:35:39Z"
+  },
+  "manifest": {
+    "files": [
+      "constants/routes_mrt.json"
+    ]
+  },
+  "version": 1
+}

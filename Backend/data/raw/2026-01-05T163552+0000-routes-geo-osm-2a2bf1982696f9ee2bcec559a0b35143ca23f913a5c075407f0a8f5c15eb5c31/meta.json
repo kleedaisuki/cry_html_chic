@@ -1,0 +1,26 @@
+{
+  "checksum": {
+    "algo": "sha256",
+    "hex": "d6a741135634d410552757c00cfe5e6ff5e81c6d9ba35c09aa81c12ad69b3764"
+  },
+  "key": {
+    "config_name": "routes-geo-osm",
+    "content_hash": "2a2bf1982696f9ee2bcec559a0b35143ca23f913a5c075407f0a8f5c15eb5c31",
+    "fetched_at_iso": "2026-01-05T16:35:52+00:00"
+  },
+  "payload_file": "payload.bin",
+  "raw": {
+    "cache_path": "",
+    "content_type": "application/json",
+    "encoding": "utf-8",
+    "fetched_at_iso": "2026-01-05T16:35:52+00:00",
+    "meta": {
+      "endpoint_url": "https://overpass-api.de/api/interpreter",
+      "query_len": "129",
+      "user_agent": "SG-TRANSIT-VIS/ingest"
+    },
+    "source_name": "osm_overpass"
+  },
+  "size_bytes": 29714,
+  "version": 1
+}

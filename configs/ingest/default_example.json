@@ -44,6 +44,7 @@
         "ingest.transform.front.json_payload",
         "ingest.transform.optimizer.plain_optimizer",
         "ingest.transform.optimizer.data_cleaning_optimizer",
+        "ingest.transform.optimizer.bus_route_optimizer",
         "ingest.transform.output.js_constants"
     ],
     "jobs": [
