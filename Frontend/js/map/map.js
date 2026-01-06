@@ -40,8 +40,12 @@ const MapManager = (function() {
             : container;
 
         if (!mapContainer) {
+            console.error('Map container not found!');
             throw new Error('Map container not found');
         }
+
+        console.log('Map container found:', mapContainer);
+        console.log('Container size:', mapContainer.offsetWidth, 'x', mapContainer.offsetHeight);
 
         // 创建地图
         map = L.map(mapContainer, {
@@ -51,6 +55,10 @@ const MapManager = (function() {
             maxZoom: CONFIG.map.maxZoom,
             zoomControl: false // 使用自定义控件
         });
+
+        console.log('Map created:', !!map);
+        console.log('Initial center:', map.getCenter());
+        console.log('Initial zoom:', map.getZoom());
 
         // 添加底图
         addTileLayers();
@@ -72,18 +80,27 @@ const MapManager = (function() {
             'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             {
                 attribution: '&copy; OpenStreetMap contributors',
-                maxZoom: 19
+                maxZoom: 19,
+                crossOrigin: 'anonymous'
             }
-        ).addTo(map);
+        ).on('load', function() {
+            console.log('Tile layer loaded successfully');
+        }).on('error', function(e) {
+            console.error('Tile layer error:', e);
+        }).addTo(map);
 
         // 深色底图（CartoDB Dark Matter）
         tileLayers.dark = L.tileLayer(
             'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
             {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                maxZoom: 20
+                maxZoom: 20,
+                crossOrigin: 'anonymous'
             }
         );
+
+        console.log('Tile layers initialized');
+        console.log('Map container size:', map.getSize());
     }
 
     /**
@@ -269,6 +286,9 @@ const MapManager = (function() {
         destroy
     };
 })();
+
+// 挂载到 window 对象（确保全局可访问）
+window.MapManager = MapManager;
 
 // 导出（用于模块系统）
 if (typeof module !== 'undefined' && module.exports) {

@@ -194,14 +194,25 @@ def _extract_relation_members_geoms(
             if pt is not None:
                 out.append(_geom_point(pt[0], pt[1]))
         elif mtype == "way" and isinstance(mid, int):
-            way = ways_index.get(mid)
-            if way is None:
-                continue
-            coords = _extract_way_coords(way, nodes_index=nodes_index)
+            # 优先从 member.geometry 获取坐标（Overpass out body geom 会内嵌 geometry）
+            # 如果没有内嵌 geometry，才尝试从 ways_index 获取
+            coords: List[Tuple[float, float]] = []
+            if "geometry" in m and isinstance(m["geometry"], list):
+                for p in m["geometry"]:
+                    if isinstance(p, dict):
+                        lat = p.get("lat")
+                        lon = p.get("lon")
+                        if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                            coords.append((float(lon), float(lat)))
+            else:
+                # fallback: 从 ways_index 获取（需要 ways 在 elements 中）
+                way = ways_index.get(mid)
+                if way is not None:
+                    coords = _extract_way_coords(way, nodes_index=nodes_index)
+
             if len(coords) >= 2:
                 # polygon if closed or tagged as area
-                tags = way.get("tags") if isinstance(way.get("tags"), dict) else {}
-                is_area = tags.get("area") == "yes" or tags.get("building") is not None
+                is_area = False  # member 没有独立的 tags
                 if _is_closed_ring(coords) or is_area:
                     out.append(_geom_polygon(coords))
                 else:

@@ -10,6 +10,7 @@ const API = (function() {
     let cache = {
         passengerFlow: null,
         routes: null,
+        busStops: null,
         timestamps: []
     };
 
@@ -94,6 +95,41 @@ const API = (function() {
             cache.routes = {};
             return cache.routes;
         }
+    }
+
+    /**
+     * 加载公交站点数据（适配 BusStops 数据集）
+     * @returns {Promise<Object>} 站点数据
+     */
+    async function loadBusStops() {
+        if (cache.busStops) {
+            return cache.busStops;
+        }
+
+        try {
+            const data = await Helpers.loadJSConstant(`${CONFIG.data.basePath}/bus_stops.js`);
+            cache.busStops = data;
+            return data;
+        } catch (error) {
+            console.warn('Could not load bus_stops.js:', error);
+            cache.busStops = {
+                ir_kind: 'bus_stops',
+                data: { value: [] }
+            };
+            return cache.busStops;
+        }
+    }
+
+    /**
+     * 获取所有公交站点
+     * @returns {Array} 站点数组
+     */
+    async function getAllBusStops() {
+        const data = await loadBusStops();
+        if (data && data.data && data.data.value) {
+            return data.data.value;
+        }
+        return [];
     }
 
     /**
@@ -203,6 +239,7 @@ const API = (function() {
         cache = {
             passengerFlow: null,
             routes: null,
+            busStops: null,
             timestamps: []
         };
     }
@@ -227,6 +264,8 @@ const API = (function() {
         loadAll,
         loadPassengerFlow,
         loadRoutes,
+        loadBusStops,
+        getAllBusStops,
         getFlowAt,
         getTimestamps,
         getRouteInfo,
