@@ -342,8 +342,24 @@ class DataMallLinkFileSource(DataSource):
             raise ValueError(f"stage1 is not valid json: {e}")
 
         link = obj.get("Link")
+
+        # 兼容 OData 风格：{"odata.metadata": "...", "value": [{"Link": "..."}]}
+        if (not isinstance(link, str) or not link.strip()) and isinstance(obj.get("value"), list):
+            v = obj.get("value")  # type: ignore[assignment]
+            if v and isinstance(v[0], dict):
+                link = v[0].get("Link")
+
+        # 少数情况：value 直接是 dict
+        if (not isinstance(link, str) or not link.strip()) and isinstance(obj.get("value"), dict):
+            link = obj["value"].get("Link")
+
         if not isinstance(link, str) or not link.strip():
-            _LOG.error("stage1 json missing Link field: keys=%s", list(obj.keys())[:50])
+            _LOG.error(
+                "stage1 json missing Link field: keys=%s value_type=%s value_prefix=%r",
+                list(obj.keys())[:50],
+                type(obj.get("value")).__name__,
+                str(obj.get("value"))[:200],
+            )
             raise ValueError("stage1 json does not contain a valid 'Link' field")
 
         stage1_payload_json = json.dumps(obj, ensure_ascii=False, sort_keys=True)
