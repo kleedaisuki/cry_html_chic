@@ -31,6 +31,7 @@ const LayerManager = (function () {
      * @typedef {Object} RouteUIState
      * @property {boolean} selected - 是否被选中 / Selected.
      * @property {boolean} hovered  - 是否悬浮 / Hovered.
+     * @property {boolean} dimmed  - 是否变浅（选中其他线路时）/ Dimmed when another route is selected.
      */
 
     /**
@@ -151,14 +152,36 @@ const LayerManager = (function () {
      * @return {RouteStyleState} style - Projected style.
      */
     function projectStyle(rs) {
-        const baseOpacity = rs.ui.selected ? 1.0 : 0.8;
-        const opacity = rs.ui.selected ? 1.0 : (rs.ui.hovered ? 1.0 : baseOpacity);
-        const weight = rs.ui.selected ? 6 : (rs.ui.hovered ? 6 : 4);
+        // 优先级: selected > hovered > dimmed > default
+        if (rs.ui.selected) {
+            return {
+                color: decideColor(rs),
+                weight: 6,
+                opacity: 1.0,
+            };
+        }
 
+        if (rs.ui.hovered) {
+            return {
+                color: decideColor(rs),
+                weight: 6,
+                opacity: 1.0,
+            };
+        }
+
+        if (rs.ui.dimmed) {
+            return {
+                color: decideColor(rs),
+                weight: 4,
+                opacity: 0.3,
+            };
+        }
+
+        // 默认状态
         return {
             color: decideColor(rs),
-            weight,
-            opacity,
+            weight: 4,
+            opacity: 0.8,
         };
     }
 
@@ -252,7 +275,7 @@ const LayerManager = (function () {
             id: routeId,
             info: routeInfo || {},
             layer,
-            ui: { selected: false, hovered: false },
+            ui: { selected: false, hovered: false, dimmed: false },
             flow: { flow: null, type: null, capacity: null, utilization: null },
             lastStyle: null,
         };
@@ -311,6 +334,7 @@ const LayerManager = (function () {
         if (rs) {
             rs.ui.selected = true;
             rs.ui.hovered = false;
+            rs.ui.dimmed = false;
             applyProjection(rs);
             rs.layer.bringToFront();
         }
@@ -320,13 +344,13 @@ const LayerManager = (function () {
             if (id !== routeId) {
                 r.ui.selected = false;
                 r.ui.hovered = false;
-                // selection effect: reduce opacity, but keep color
-                r.lastStyle = null; // force apply
-                r.layer.eachLayer((layer) => {
-                    if (layer.setStyle) layer.setStyle({ opacity: 0.3 });
-                });
+                r.ui.dimmed = true;
+                r.lastStyle = null; // force apply through projectStyle()
             }
         });
+
+        // 统一重新计算所有线路样式
+        invalidateAll();
     }
 
     /**
@@ -338,11 +362,18 @@ const LayerManager = (function () {
             if (rs) {
                 rs.ui.selected = false;
                 rs.ui.hovered = false;
+                rs.ui.dimmed = false;
                 rs.lastStyle = null;
                 applyProjection(rs);
             }
             selectedRouteId = null;
         }
+
+        // 清除所有线路的 dimmed 状态
+        routesById.forEach((r) => {
+            r.ui.dimmed = false;
+            r.lastStyle = null;
+        });
 
         // restore others
         invalidateAll();
