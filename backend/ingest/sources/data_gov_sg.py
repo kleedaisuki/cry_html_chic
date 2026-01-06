@@ -444,6 +444,51 @@ def _api_key(config: Mapping[str, Any]) -> Optional[str]:
     return _optional_str(config, "api_key")
 
 
+def _parse_charset_from_content_type(content_type: str) -> Optional[str]:
+    """
+    /**
+     * @brief 从 Content-Type 解析 charset（若存在）/ Parse charset from Content-Type (if any).
+     * @param content_type Content-Type 头（可能包含 charset=...）/ Content-Type header (may include charset=...).
+     * @return charset 字符串或 None / charset string or None.
+     */
+    """
+    if not content_type:
+        return None
+    # Example: "application/json; charset=utf-8"
+    parts = [p.strip() for p in content_type.split(";") if p.strip()]
+    for p in parts[1:]:
+        if p.lower().startswith("charset="):
+            v = p.split("=", 1)[1].strip().strip('"').strip("'")
+            return v or None
+    return None
+
+
+def _infer_text_encoding(content_type: str) -> str:
+    """
+    /**
+     * @brief 基于 Content-Type 推断文本编码（仅返回可用于 Python decode 的 codec 名）/
+     *        Infer text encoding from Content-Type (returns Python-decodable codec name).
+     *
+     * @note
+     * - 若 Content-Type 表示 JSON/text（例如 application/json, text/*, */*+json），默认返回 utf-8。
+     *   If Content-Type indicates JSON/text (e.g., application/json, text/*, */*+json), default to utf-8.
+     * - 否则返回 "binary" 作为哨兵值，表示不应走文本 decode。
+     *   Otherwise returns "binary" sentinel, meaning should not be text-decoded.
+     */
+    """
+    ct = (content_type or "").lower()
+    charset = _parse_charset_from_content_type(ct)
+    if charset:
+        return charset
+    is_text_like = (
+        ct.startswith("text/")
+        or "application/json" in ct
+        or "+json" in ct
+        or ct.endswith("/json")
+    )
+    return "utf-8" if is_text_like else "binary"
+
+
 # ============================================================
 # DataSource: Realtime / 实时接口
 # ============================================================
@@ -676,6 +721,17 @@ class DataGovSgDatastoreSearchSource(DataSource):
             )
 
             content_type = resp_headers.get("Content-Type", "application/json")
+            # Allow callers to override encoding explicitly (useful for weird endpoints).
+            encoding_override = _optional_str(cfg, "encoding")
+            encoding = encoding_override or _infer_text_encoding(content_type)
+            _LOG.info(
+                "data_gov_sg.download direct: url=%s content_type=%s encoding=%s (override=%s) bytes=%d",
+                url,
+                content_type,
+                encoding,
+                encoding_override or "",
+                len(payload),
+            )
             cache_path = _safe_cache_path(
                 "data_gov_sg",
                 "datastore_search",
@@ -696,7 +752,9 @@ class DataGovSgDatastoreSearchSource(DataSource):
                 source_name=self.name(),
                 fetched_at_iso=_utc_now_iso(),
                 content_type=content_type,
-                encoding="utf-8",
+                # IMPORTANT: encoding must be a Python codec name when text-like; avoid
+                # poisoning downstream JSON frontend with the "binary" sentinel.
+                encoding=encoding,
                 cache_path=cache_path,
                 meta=meta,
             )
@@ -799,6 +857,17 @@ class DataGovSgDownloadSource(DataSource):
                 rate_limit_sleep_s=rate_sleep,
             )
             content_type = resp_headers.get("Content-Type", content_type_hint)
+                        # Allow callers to override encoding explicitly (useful for weird endpoints).
+            encoding_override = _optional_str(cfg, "encoding")
+            encoding = encoding_override or _infer_text_encoding(content_type)
+            _LOG.info(
+                "data_gov_sg.download direct: url=%s content_type=%s encoding=%s (override=%s) bytes=%d",
+                download_url,
+                content_type,
+                encoding,
+                encoding_override or "",
+                len(payload),
+            )
             cache_path = _safe_cache_path(
                 "data_gov_sg", "download", "direct", "file.bin"
             )
@@ -813,7 +882,7 @@ class DataGovSgDownloadSource(DataSource):
                 source_name=self.name(),
                 fetched_at_iso=_utc_now_iso(),
                 content_type=content_type,
-                encoding="binary",
+                encoding=encoding,
                 cache_path=cache_path,
                 meta=meta,
             )
@@ -941,6 +1010,17 @@ class DataGovSgDownloadSource(DataSource):
             rate_limit_sleep_s=rate_sleep,
         )
         content_type = d_headers.get("Content-Type", content_type_hint)
+        # Allow callers to override encoding explicitly (useful for weird endpoints).
+        encoding_override = _optional_str(cfg, "encoding")
+        encoding = encoding_override or _infer_text_encoding(content_type)
+        _LOG.info(
+            "data_gov_sg.download direct: url=%s content_type=%s encoding=%s (override=%s) bytes=%d",
+            download_url,
+            content_type,
+            encoding,
+            encoding_override or "",
+            len(payload),
+        )
         cache_path_dl = _safe_cache_path(
             "data_gov_sg", "download", "job", job_id, "file.bin"
         )
@@ -956,7 +1036,7 @@ class DataGovSgDownloadSource(DataSource):
             source_name=self.name(),
             fetched_at_iso=_utc_now_iso(),
             content_type=content_type,
-            encoding="binary",
+            encoding=encoding,
             cache_path=cache_path_dl,
             meta=meta_dl,
         )
