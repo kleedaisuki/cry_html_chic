@@ -1,412 +1,467 @@
 /**
- * 图层管理器
- * Singapore Transit Visualization System
+ * @file layers.js
+ * @brief 图层管理器（数据中心建模版）/ Layer manager (data-centric modeling).
+ *
+ * 设计要点（中文）：
+ * - 以 RouteState 为真相源（single source of truth），将「静态 routes」+「动态 flow」+「UI 状态」统一建模。
+ * - 样式由投影函数（projection）计算得到；任何时刻都能从状态推导出确定的渲染结果。
+ *
+ * Design notes (EN):
+ * - Use RouteState as the single source of truth, modeling static routes + dynamic flow + UI state.
+ * - Styles are computed by projection; rendering is a deterministic function of state.
  */
 
-const LayerManager = (function() {
-    'use strict';
+const LayerManager = (function () {
+    "use strict";
 
-    // 线路图层组
+    // -----------------------------
+    // Internal state / 内部状态
+    // -----------------------------
+
+    /** @type {L.LayerGroup|null} */
     let routeLayerGroup = null;
 
-    // 站点图层组
+    /** @type {L.LayerGroup|null} */
     let stationLayerGroup = null;
 
-    // 当前所有线路图层的引用
-    let routeLayers = {};
-
-    // 当前选中的线路
-    let selectedRouteId = null;
+    /** @type {boolean} */
+    let initialized = false;
 
     /**
-     * 初始化图层管理器
+     * @typedef {Object} RouteUIState
+     * @property {boolean} selected - 是否被选中 / Selected.
+     * @property {boolean} hovered  - 是否悬浮 / Hovered.
+     */
+
+    /**
+     * @typedef {Object} RouteFlowState
+     * @property {number|null} flow - 客流 / Flow.
+     * @property {string|null} type - 类型 / Type.
+     * @property {number|null} capacity - 容量 / Capacity.
+     * @property {number|null} utilization - 利用率 / Utilization.
+     */
+
+    /**
+     * @typedef {Object} RouteStyleState
+     * @property {string} color - 颜色 / Color.
+     * @property {number} weight - 线宽 / Stroke weight.
+     * @property {number} opacity - 不透明度 / Opacity.
+     */
+
+    /**
+     * @typedef {Object} RouteState
+     * @property {string} id - 线路主键 / Route id.
+     * @property {Object} info - 静态信息 / Static route info.
+     * @property {L.GeoJSON} layer - Leaflet layer.
+     * @property {RouteUIState} ui - UI state.
+     * @property {RouteFlowState} flow - Latest flow state.
+     * @property {RouteStyleState|null} lastStyle - Last applied style (for diff).
+     */
+
+    /** @type {Map<string, RouteState>} */
+    const routesById = new Map();
+
+    /** @type {Map<string, string>} */
+    const idByName = new Map();
+
+    /** @type {string|null} */
+    let selectedRouteId = null;
+
+    // -----------------------------
+    // Init / 初始化
+    // -----------------------------
+
+    /**
+     * @brief 初始化图层管理器（幂等）/ Initialize layer manager (idempotent).
+     * @note
+     * 中文：禁止重复 init，避免图层组/引用漂移。
+     * EN: Must be idempotent to prevent layer-group/reference drift.
      */
     function init() {
-        // 创建图层组
+        if (initialized) return;
+        initialized = true;
+
         routeLayerGroup = L.layerGroup().addTo(MapManager.getMap());
         stationLayerGroup = L.layerGroup().addTo(MapManager.getMap());
 
-        // 绑定线路点击事件
         bindRouteClickEvents();
     }
 
-    /**
-     * 绑定线路点击事件
-     */
     function bindRouteClickEvents() {
-        // 使用 map 的 click 事件来处理
-        MapManager.on('click', function(e) {
-            // 点击地图本身时的处理
+        MapManager.on("click", function () {
             clearSelection();
         });
     }
 
+    // -----------------------------
+    // Data-centric projection / 数据投影：State -> Style
+    // -----------------------------
+
     /**
-     * 添加线路图层
-     * @param {string} routeId - 线路 ID
-     * @param {Object} routeInfo - 线路信息
-     * @param {Object} geojson - GeoJSON 数据
-     * @returns {Layer} 图层
+     * @brief 解析外部 flow item 到 routeId / Resolve an external flow item to routeId.
+     * @param {Object} item - 外部 flow item / External flow item.
+     * @return {string|null} routeId - 匹配到的 routeId / Resolved routeId.
+     */
+    function resolveRouteId(item) {
+        if (!item) return null;
+
+        // 1) Primary key: route_id
+        if (item.route_id && routesById.has(item.route_id)) return item.route_id;
+
+        // 2) Common alternates: name / route_name
+        const name = item.route_name || item.name || null;
+        if (name && idByName.has(name)) return idByName.get(name);
+
+        return null;
+    }
+
+    /**
+     * @brief 决定一条线路的颜色 / Decide route color.
+     * @param {RouteState} rs - RouteState.
+     * @return {string} color - CSS color string.
+     */
+    function decideColor(rs) {
+        const infoType = (rs.info?.type || "mrt").toLowerCase();
+        const flowType = (rs.flow?.type || infoType || "mrt").toLowerCase();
+
+        // 1) Dynamic flow color
+        if (rs.flow && rs.flow.flow !== null && rs.flow.flow !== undefined) {
+            if (window.ColorScale && typeof ColorScale.getColor === "function") {
+                const c = ColorScale.getColor(rs.flow.flow, flowType);
+                if (c) return c;
+            }
+        }
+
+        // 2) Static route color (your data: colour)
+        if (rs.info?.colour) return rs.info.colour;
+        if (rs.info?.color) return rs.info.color;
+
+        // 3) Optional type defaults
+        if (infoType === "bus") return "#f39c12";
+        if (infoType === "lrt") return "#2ecc71";
+        if (infoType === "mrt") return "#3498db";
+
+        // 4) Fallback gray
+        return "#cccccc";
+    }
+
+    /**
+     * @brief 由 RouteState 投影得到 StyleState / Project style from RouteState.
+     * @param {RouteState} rs - RouteState.
+     * @return {RouteStyleState} style - Projected style.
+     */
+    function projectStyle(rs) {
+        const baseOpacity = rs.ui.selected ? 1.0 : 0.8;
+        const opacity = rs.ui.selected ? 1.0 : (rs.ui.hovered ? 1.0 : baseOpacity);
+        const weight = rs.ui.selected ? 6 : (rs.ui.hovered ? 6 : 4);
+
+        return {
+            color: decideColor(rs),
+            weight,
+            opacity,
+        };
+    }
+
+    /**
+     * @brief 将投影样式应用到 Leaflet layer（带 diff）/ Apply projected style with diff.
+     * @param {RouteState} rs - RouteState.
+     */
+    function applyProjection(rs) {
+        const next = projectStyle(rs);
+        const prev = rs.lastStyle;
+
+        // Cheap diff to avoid redundant setStyle
+        if (
+            prev &&
+            prev.color === next.color &&
+            prev.weight === next.weight &&
+            prev.opacity === next.opacity
+        ) {
+            return;
+        }
+
+        rs.layer.eachLayer(function (layer) {
+            if (layer.setStyle) layer.setStyle(next);
+        });
+
+        rs.lastStyle = next;
+    }
+
+    /**
+     * @brief 批量重投影所有线路 / Re-project all routes.
+     */
+    function invalidateAll() {
+        routesById.forEach((rs) => applyProjection(rs));
+    }
+
+    // -----------------------------
+    // Public API / 对外 API（保持兼容）
+    // -----------------------------
+
+    /**
+     * @brief 添加线路图层 / Add a route layer.
+     * @param {string} routeId - 线路主键 / Route id.
+     * @param {Object} routeInfo - 静态线路信息 / Static route info.
+     * @param {Object} geojson - GeoJSON 数据 / GeoJSON.
+     * @returns {L.GeoJSON|null} layer - Leaflet GeoJSON layer.
      */
     function addRoute(routeId, routeInfo, geojson) {
         if (!routeLayerGroup || !geojson) {
-            console.warn('LayerManager.addRoute: missing routeLayerGroup or geojson');
+            console.warn("LayerManager.addRoute: missing routeLayerGroup or geojson");
             return null;
         }
 
-        // 创建样式函数 - 初始使用灰色，客流量到达后通过 updateRouteColors 更新颜色
-        const styleFunction = (feature) => {
-            const type = feature.properties?.type || routeInfo?.type || 'mrt';
-            return {
-                color: '#cccccc',  // 初始灰色，updateRouteColors 会更新
-                weight: 5,
-                opacity: 0.9
-            };
-        };
-
-        // 创建点击处理函数
-        const onEachFeature = (feature, layer) => {
-            layer.on('click', function(e) {
-                // 阻止事件冒泡到地图
-                L.DomEvent.stopPropagation(e);
-
-                // 选中高亮并显示详情
-                selectRoute(routeId);
-
-                // 触发自定义事件
-                if (window.App) {
-                    App.showRouteDetail(routeId);
-                }
-            });
-
-            layer.on('mouseover', function(e) {
-                // 悬浮高亮
-                if (routeId !== selectedRouteId) {
-                    this.setStyle({
-                        weight: 6,
-                        opacity: 1
-                    });
-                }
-            });
-
-            layer.on('mouseout', function(e) {
-                // 移除悬浮高亮
-                if (routeId !== selectedRouteId) {
-                    this.setStyle({
-                        weight: 4,
-                        opacity: 0.8
-                    });
-                }
-            });
-        };
-
-        // 创建图层
+        // Create layer
         const layer = L.geoJSON(geojson, {
-            style: styleFunction,
-            onEachFeature: onEachFeature
+            // IMPORTANT: do NOT hardcode gray here; style is projected from RouteState.
+            style: () => ({
+                color: "#cccccc", // temporary until first projection
+                weight: 4,
+                opacity: 0.8,
+            }),
+            onEachFeature: (feature, leafLayer) => {
+                leafLayer.on("click", function (e) {
+                    L.DomEvent.stopPropagation(e);
+                    selectRoute(routeId);
+                    if (window.App) App.showRouteDetail(routeId);
+                });
+
+                leafLayer.on("mouseover", function () {
+                    const rs = routesById.get(routeId);
+                    if (!rs) return;
+                    if (!rs.ui.selected) {
+                        rs.ui.hovered = true;
+                        applyProjection(rs);
+                    }
+                });
+
+                leafLayer.on("mouseout", function () {
+                    const rs = routesById.get(routeId);
+                    if (!rs) return;
+                    if (!rs.ui.selected) {
+                        rs.ui.hovered = false;
+                        applyProjection(rs);
+                    }
+                });
+            },
         });
 
-        // 存储引用
-        routeLayers[routeId] = {
+        // Build RouteState
+        /** @type {RouteState} */
+        const rs = {
+            id: routeId,
+            info: routeInfo || {},
             layer,
-            info: routeInfo
+            ui: { selected: false, hovered: false },
+            flow: { flow: null, type: null, capacity: null, utilization: null },
+            lastStyle: null,
         };
 
-        // 添加到图层组
+        routesById.set(routeId, rs);
+        if (rs.info?.name) idByName.set(rs.info.name, routeId);
+
         layer.addTo(routeLayerGroup);
+
+        // First projection (static colour already available)
+        applyProjection(rs);
 
         return layer;
     }
 
     /**
-     * 添加站点标记
-     * @param {Array} stations - 站点数组
-     * @returns {Array} 标记数组
-     */
-    function addStations(stations) {
-        if (!stationLayerGroup || !stations) {
-            return [];
-        }
-
-        const markers = [];
-
-        stations.forEach(station => {
-            if (station.position) {
-                const marker = L.circleMarker(station.position, {
-                    radius: 5,
-                    fillColor: '#666',
-                    color: '#fff',
-                    weight: 1,
-                    fillOpacity: 0.8
-                });
-
-                marker.bindPopup(`
-                    <strong>${station.name}</strong><br>
-                    <small>${station.id || ''}</small>
-                `);
-
-                marker.addTo(stationLayerGroup);
-                markers.push(marker);
-            }
-        });
-
-        return markers;
-    }
-
-    /**
-     * 添加公交站点标记（适配 BusStops 数据集）
-     * @param {Array} busStops - BusStops 数据数组
-     * @returns {Array} 标记数组
-     */
-    function addBusStops(busStops) {
-        if (!stationLayerGroup || !busStops) {
-            return [];
-        }
-
-        const markers = [];
-
-        busStops.forEach(stop => {
-            // BusStops 数据格式: {BusStopCode, Description, Latitude, Longitude, RoadName}
-            if (stop.Latitude && stop.Longitude) {
-                const position = [stop.Latitude, stop.Longitude];
-                const marker = L.circleMarker(position, {
-                    radius: 4,
-                    fillColor: '#f39c12',  // 橙色
-                    color: '#fff',
-                    weight: 1,
-                    fillOpacity: 0.7
-                });
-
-                marker.bindPopup(`
-                    <strong>${stop.Description || stop.BusStopCode}</strong><br>
-                    <small>站点编号: ${stop.BusStopCode}</small><br>
-                    <small>道路: ${stop.RoadName || '-'}</small>
-                `);
-
-                marker.addTo(stationLayerGroup);
-                markers.push(marker);
-            }
-        });
-
-        console.log(`Added ${markers.length} bus stop markers to the map`);
-        return markers;
-    }
-
-    /**
-     * 根据客流数据更新线路颜色
-     * @param {Array} flowData - 客流数据数组
+     * @brief 吸收客流快照并刷新渲染 / Ingest flow snapshot and refresh rendering.
+     * @param {Array<Object>} flowData - 客流数组 / Flow items.
      */
     function updateRouteColors(flowData) {
-        if (!flowData || !routeLayerGroup) {
+        if (!flowData) {
+            // Even if flowData is missing, we still want a stable projection (static colour).
+            invalidateAll();
             return;
         }
 
-        flowData.forEach(item => {
-            const route = routeLayers[item.route_id];
-            if (route) {
-                const config = CONFIG.transportTypes[item.type] || CONFIG.transportTypes.mrt;
-                const color = ColorScale.getColor(item.flow, item.type);
+        // 1) ingest to state
+        for (const item of flowData) {
+            const rid = resolveRouteId(item);
+            if (!rid) continue;
 
-                // 更新图层样式
-                route.layer.eachLayer(function(layer) {
-                    if (layer.setStyle) {
-                        layer.setStyle({
-                            color: color,
-                            weight: selectedRouteId === item.route_id ? 6 : 4,
-                            opacity: selectedRouteId === item.route_id ? 1 : 0.8
-                        });
-                    }
-                });
-            }
-        });
-    }
+            const rs = routesById.get(rid);
+            if (!rs) continue;
 
-    /**
-     * 选中线路
-     * @param {string} routeId - 线路 ID
-     */
-    function selectRoute(routeId) {
-        // 清除之前的选中状态
-        clearSelection();
-
-        selectedRouteId = routeId;
-
-        const route = routeLayers[routeId];
-        if (route) {
-            // 高亮选中的线路
-            route.layer.eachLayer(function(layer) {
-                if (layer.setStyle) {
-                    layer.setStyle({
-                        weight: 6,
-                        opacity: 1
-                    });
-                }
-            });
-
-            // 确保选中的线路在最上层
-            route.layer.bringToFront();
+            rs.flow = {
+                flow: item.flow ?? null,
+                type: item.type ?? rs.info?.type ?? null,
+                capacity: item.capacity ?? null,
+                utilization: item.utilization ?? null,
+            };
         }
 
-        // 降低其他线路的透明度
-        Object.entries(routeLayers).forEach(([id, routeData]) => {
+        // 2) project all (can be optimized later to only affected routeIds)
+        invalidateAll();
+    }
+
+    /**
+     * @brief 选中线路 / Select a route.
+     * @param {string} routeId - route id.
+     */
+    function selectRoute(routeId) {
+        clearSelection();
+        selectedRouteId = routeId;
+
+        const rs = routesById.get(routeId);
+        if (rs) {
+            rs.ui.selected = true;
+            rs.ui.hovered = false;
+            applyProjection(rs);
+            rs.layer.bringToFront();
+        }
+
+        // de-emphasize others (data-driven opacity)
+        routesById.forEach((r, id) => {
             if (id !== routeId) {
-                routeData.layer.eachLayer(function(layer) {
-                    if (layer.setStyle) {
-                        layer.setStyle({
-                            opacity: 0.3
-                        });
-                    }
+                r.ui.selected = false;
+                r.ui.hovered = false;
+                // selection effect: reduce opacity, but keep color
+                r.lastStyle = null; // force apply
+                r.layer.eachLayer((layer) => {
+                    if (layer.setStyle) layer.setStyle({ opacity: 0.3 });
                 });
             }
         });
     }
 
     /**
-     * 清除选中状态
+     * @brief 清除选中状态 / Clear selection.
      */
     function clearSelection() {
         if (selectedRouteId) {
-            const route = routeLayers[selectedRouteId];
-            if (route) {
-                route.layer.eachLayer(function(layer) {
-                    if (layer.setStyle) {
-                        layer.setStyle({
-                            weight: 4,
-                            opacity: 0.8
-                        });
-                    }
-                });
+            const rs = routesById.get(selectedRouteId);
+            if (rs) {
+                rs.ui.selected = false;
+                rs.ui.hovered = false;
+                rs.lastStyle = null;
+                applyProjection(rs);
             }
             selectedRouteId = null;
         }
 
-        // 恢复所有线路的透明度
-        Object.values(routeLayers).forEach(routeData => {
-            routeData.layer.eachLayer(function(layer) {
-                if (layer.setStyle) {
-                    layer.setStyle({
-                        opacity: 0.8
-                    });
-                }
-            });
-        });
+        // restore others
+        invalidateAll();
     }
 
-    /**
-     * 高亮指定线路
-     * @param {string} routeId - 线路 ID
-     */
-    function highlightRoute(routeId) {
-        selectRoute(routeId);
-    }
+    // ---- keep rest of API (stations, toggle, etc.) as-is or minimally adapted ----
 
-    /**
-     * 切换图层显示
-     * @param {string} type - 交通类型 (mrt/lrt/bus)
-     * @param {boolean} visible - 是否显示
-     */
-    function toggleLayer(type, visible) {
-        Object.entries(routeLayers).forEach(([routeId, routeData]) => {
-            const routeType = routeData.info?.type || 'mrt';
-            if (routeType === type) {
-                if (visible) {
-                    routeLayerGroup.addLayer(routeData.layer);
-                } else {
-                    routeLayerGroup.removeLayer(routeData.layer);
-                }
+    function addStations(stations) {
+        if (!stationLayerGroup || !stations) return [];
+        const markers = [];
+        stations.forEach((station) => {
+            if (station.position) {
+                const marker = L.circleMarker(station.position, {
+                    radius: 5,
+                    fillColor: "#666",
+                    color: "#fff",
+                    weight: 1,
+                    fillOpacity: 0.8,
+                });
+                marker.bindPopup(
+                    `<strong>${station.name}</strong><br><small>${station.id || ""}</small>`
+                );
+                marker.addTo(stationLayerGroup);
+                markers.push(marker);
             }
         });
+        return markers;
     }
 
-    /**
-     * 获取线路信息
-     * @param {string} routeId - 线路 ID
-     * @returns {Object|null} 线路信息
-     */
+    function addBusStops(busStops) {
+        if (!stationLayerGroup || !busStops) return [];
+        const markers = [];
+        busStops.forEach((stop) => {
+            if (stop.Latitude && stop.Longitude) {
+                const position = [stop.Latitude, stop.Longitude];
+                const marker = L.circleMarker(position, {
+                    radius: 4,
+                    fillColor: "#f39c12",
+                    color: "#fff",
+                    weight: 1,
+                    fillOpacity: 0.7,
+                });
+                marker.bindPopup(
+                    `<strong>${stop.Description || stop.BusStopCode}</strong><br>
+           <small>站点编号: ${stop.BusStopCode}</small><br>
+           <small>道路: ${stop.RoadName || "-"}</small>`
+                );
+                marker.addTo(stationLayerGroup);
+                markers.push(marker);
+            }
+        });
+        return markers;
+    }
+
+    function toggleLayer(type, visible) {
+        routesById.forEach((rs) => {
+            const routeType = (rs.info?.type || "mrt").toLowerCase();
+            if (routeType !== type) return;
+            if (visible) routeLayerGroup.addLayer(rs.layer);
+            else routeLayerGroup.removeLayer(rs.layer);
+        });
+    }
+
     function getRouteInfo(routeId) {
-        return routeLayers[routeId]?.info || null;
+        const rs = routesById.get(routeId);
+        return rs ? rs.info : null;
     }
 
-    /**
-     * 获取所有线路信息
-     * @returns {Object} 线路信息对象
-     */
     function getAllRoutes() {
-        return Object.entries(routeLayers).reduce((acc, [id, data]) => {
-            acc[id] = data.info;
-            return acc;
-        }, {});
+        const obj = {};
+        routesById.forEach((rs, id) => (obj[id] = rs.info));
+        return obj;
     }
 
-    /**
-     * 清除所有线路
-     */
     function clearRoutes() {
-        if (routeLayerGroup) {
-            routeLayerGroup.clearLayers();
-        }
-        routeLayers = {};
+        if (routeLayerGroup) routeLayerGroup.clearLayers();
+        routesById.clear();
+        idByName.clear();
         selectedRouteId = null;
     }
 
-    /**
-     * 清除所有站点
-     */
     function clearStations() {
-        if (stationLayerGroup) {
-            stationLayerGroup.clearLayers();
-        }
+        if (stationLayerGroup) stationLayerGroup.clearLayers();
     }
 
-    /**
-     * 获取线路图层
-     * @param {string} routeId - 线路 ID
-     * @returns {Layer|null} 图层
-     */
     function getRouteLayer(routeId) {
-        return routeLayers[routeId]?.layer || null;
+        const rs = routesById.get(routeId);
+        return rs ? rs.layer : null;
     }
 
-    /**
-     * 缩放到指定线路
-     * @param {string} routeId - 线路 ID
-     */
     function fitToRoute(routeId) {
-        const route = routeLayers[routeId];
-        if (route && route.layer) {
-            const map = MapManager.getMap();
-            if (map) {
-                map.fitBounds(route.layer.getBounds(), {
-                    padding: [50, 50]
-                });
-            }
-        }
+        const rs = routesById.get(routeId);
+        if (!rs || !rs.layer) return;
+        const map = MapManager.getMap();
+        if (!map) return;
+        map.fitBounds(rs.layer.getBounds(), { padding: [50, 50] });
     }
 
-    // 导出公共 API
     return {
         init,
         addRoute,
         addStations,
         addBusStops,
-        updateRouteColors,
+        updateRouteColors, // keep name for compatibility
         selectRoute,
         clearSelection,
-        highlightRoute,
+        highlightRoute: selectRoute,
         toggleLayer,
         getRouteInfo,
         getAllRoutes,
         clearRoutes,
         clearStations,
         getRouteLayer,
-        fitToRoute
+        fitToRoute,
     };
 })();
 
-// 挂载到 window 对象（确保全局可访问）
 window.LayerManager = LayerManager;
 
-// 导出（用于模块系统）
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== "undefined" && module.exports) {
     module.exports = LayerManager;
 }
