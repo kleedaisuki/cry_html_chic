@@ -376,8 +376,9 @@ const LayerManager = (function () {
     /**
      * @brief 吸收客流快照并刷新渲染 / Ingest flow snapshot and refresh rendering.
      * @param {Array<Object>} flowData - 客流数组 / Flow items.
+     * @param {boolean} useFlowColors - 是否使用客流颜色模式 / Use flow color mode.
      */
-    function updateRouteColors(flowData) {
+    function updateRouteColors(flowData, useFlowColors = true) {
         if (!flowData) {
             // Even if flowData is missing, we still want a stable projection (static colour).
             invalidateAll();
@@ -392,12 +393,15 @@ const LayerManager = (function () {
             const rs = routesById.get(rid);
             if (!rs) continue;
 
-            rs.flow = {
-                flow: item.flow ?? null,
-                type: item.type ?? rs.info?.type ?? null,
-                capacity: item.capacity ?? null,
-                utilization: item.utilization ?? null,
-            };
+            // 如果使用客流颜色模式，更新 flow 数据；否则保留现有数据但不影响颜色决策
+            if (useFlowColors) {
+                rs.flow = {
+                    flow: item.flow ?? null,
+                    type: item.type ?? rs.info?.type ?? null,
+                    capacity: item.capacity ?? null,
+                    utilization: item.utilization ?? null,
+                };
+            }
         }
 
         // 2) project all (can be optimized later to only affected routeIds)

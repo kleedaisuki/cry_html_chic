@@ -11,6 +11,7 @@ const API = (function() {
         passengerFlow: null,
         routes: null,
         busStops: null,
+        populationHeatmap: null,
         timestamps: []
     };
 
@@ -133,6 +134,41 @@ const API = (function() {
     }
 
     /**
+     * 加载人口热力图数据
+     * @returns {Promise<Object>} 热力图数据
+     */
+    async function loadPopulationHeatmap() {
+        if (cache.populationHeatmap) {
+            return cache.populationHeatmap;
+        }
+
+        try {
+            const data = await Helpers.loadJSConstant(`${CONFIG.data.basePath}/population_heatmap.js`);
+            cache.populationHeatmap = data;
+            return data;
+        } catch (error) {
+            console.warn('Could not load population_heatmap.js:', error);
+            cache.populationHeatmap = {
+                ir_kind: 'population_heatmap',
+                data: { points: [], stats: { count: 0, min: 0, max: 0, sum: 0 } }
+            };
+            return cache.populationHeatmap;
+        }
+    }
+
+    /**
+     * 获取人口热力图数据点
+     * @returns {Array} 热力图数据点数组
+     */
+    async function getPopulationHeatmapPoints() {
+        const data = await loadPopulationHeatmap();
+        if (data && data.data && data.data.points) {
+            return data.data.points;
+        }
+        return [];
+    }
+
+    /**
      * 获取指定时间点的客流数据
      * @param {string} timestamp - 时间戳
      * @returns {Object|null} 该时间点的客流数据
@@ -240,6 +276,7 @@ const API = (function() {
             passengerFlow: null,
             routes: null,
             busStops: null,
+            populationHeatmap: null,
             timestamps: []
         };
     }
@@ -265,7 +302,9 @@ const API = (function() {
         loadPassengerFlow,
         loadRoutes,
         loadBusStops,
+        loadPopulationHeatmap,
         getAllBusStops,
+        getPopulationHeatmapPoints,
         getFlowAt,
         getTimestamps,
         getRouteInfo,

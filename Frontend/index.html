@@ -56,6 +56,19 @@
     <!-- 悬浮控制面板 -->
     <div id="control-panel" class="control-panel">
         <div class="panel-section">
+            <h3>可视化控制</h3>
+            <div class="layer-toggles">
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-heatmap" checked>
+                    <span class="toggle-label heatmap-color">人口热力图</span>
+                </label>
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-flow" checked>
+                    <span class="toggle-label flow-color">线路客流量</span>
+                </label>
+            </div>
+        </div>
+        <div class="panel-section">
             <h3>图层控制</h3>
             <div class="layer-toggles">
                 <label class="toggle-item">
@@ -143,6 +156,7 @@
     <script src="js/map/layers.js"></script>
     <script src="js/visualization/colorScale.js"></script>
     <script src="js/visualization/flowRenderer.js"></script>
+    <script src="js/visualization/heatmapRenderer.js"></script>
     <script src="js/timeline/timeline.js"></script>
     <script src="js/timeline/player.js"></script>
     <script src="js/ui/panel.js"></script>
