@@ -3,7 +3,7 @@
  * Singapore Transit Visualization System
  */
 
-const Helpers = (function() {
+const Helpers = (function () {
     'use strict';
 
     /**
@@ -277,46 +277,63 @@ const Helpers = (function() {
     }
 
     /**
-     * 加载 JS 常量文件
-     * @param {string} url - JS 文件 URL
-     * @returns {Promise} Promise 对象
+     * @brief 加载 JS 常量文件（通过 <script> 注入），兼容 file:// 与 http(s)。
+     *        Load JS constants via <script> injection, compatible with file:// and http(s).
+     * @param {string} url - JS 文件 URL / JS file URL
+     * @return {Promise<any>} 返回 window 上导出的常量对象 / Return exported constant on window
      */
     async function loadJSConstant(url) {
         try {
-            // 使用 fetch 替代动态 script 标签加载（兼容 file:// 协议）
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Failed to load ${url}: ${response.status}`);
+            // 1) 在加载前记一份快照，用于判断“新注入出来的 window key”
+            const beforeKeys = new Set(Object.keys(window));
+
+            // 2) 用 script 标签加载（不要 fetch / eval）
+            await loadScript(url);
+
+            // 3) 优先按文件名推断变量名
+            //    e.g. population_heatmap.js -> POPULATION_HEATMAP / populationHeatmap
+            const m = url.match(/([^\/\\]+)\.js$/);
+            const base = m ? m[1] : null;
+
+            const candidates = [];
+            if (base) {
+                // population_heatmap -> POPULATION_HEATMAP
+                candidates.push(base.toUpperCase());
+                // passenger_flow -> PASSENGER_FLOW
+                candidates.push(base.toUpperCase());
+                // population_heatmap -> populationHeatmap (如果你有这种风格)
+                candidates.push(base.replace(/_([a-z])/g, (_, c) => c.toUpperCase()));
             }
-            const text = await response.text();
-            // 执行脚本内容
-            eval(text);
-            // 提取变量名
-            const match = url.match(/([^\/]+)\.js$/);
-            if (match) {
-                const varName = match[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-                // 尝试从各种可能的变量名获取数据
-                const possibleNames = [
-                    varName,
-                    varName.replace(/([A-Z])/g, '_$1').toUpperCase(),
-                    'POPULATION_HEATMAP',
-                    'PASSENGER_FLOW',
-                    'DATA'
-                ];
-                for (const name of possibleNames) {
-                    if (window[name] !== undefined) {
-                        console.log(`loadJSConstant: found ${name} in window`);
-                        return window[name];
-                    }
+
+            // 你代码里硬编码过的候选（保留）
+            candidates.push('POPULATION_HEATMAP', 'PASSENGER_FLOW', 'BUS_STOPS', 'ROUTES', 'DATA');
+
+            for (const name of candidates) {
+                if (window[name] !== undefined) {
+                    console.log(`loadJSConstant: found ${name} in window`);
+                    return window[name];
                 }
             }
-            console.warn('loadJSConstant: data not found in window for', url);
+
+            // 4) 兜底：找“加载后新增的 window key”
+            const afterKeys = Object.keys(window);
+            const newKeys = afterKeys.filter(k => !beforeKeys.has(k));
+            // 过滤掉明显不是数据常量的（可按需扩展）
+            const plausible = newKeys.filter(k => /^[A-Z0-9_]+$/.test(k));
+
+            if (plausible.length === 1 && window[plausible[0]] !== undefined) {
+                console.log(`loadJSConstant: inferred new window export ${plausible[0]}`);
+                return window[plausible[0]];
+            }
+
+            console.warn('loadJSConstant: data not found in window for', url, 'newKeys=', plausible);
             return null;
         } catch (error) {
             console.error('loadJSConstant error:', error);
             throw error;
         }
     }
+
 
     /**
      * 获取颜色（带透明度）
