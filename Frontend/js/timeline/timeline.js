@@ -139,11 +139,19 @@ const Timeline = (function() {
     function createScales() {
         if (timestamps.length === 0) return;
 
-        // 解析时间戳为日期
+        // 解析复合键格式: "YYYY-MM|DAY_TYPE|HH" 或传统格式: "YYYY-MM-DDTHH:mm:ss"
         const parseTime = (ts) => {
-            // 支持 "2024-01-01T08" 和 "2024-01-01T08:00:00" 格式
-            const str = ts.includes(':') ? ts : ts + ':00:00';
-            return dayjs(str).toDate();
+            if (ts.includes('|')) {
+                // 新格式: "2025-11|WEEKDAY|08"
+                const parts = ts.split('|');
+                const hour = parseInt(parts[2], 10) || 0;
+                // 创建一个虚拟日期用于排序（仅用于 x 轴位置）
+                return new Date(2024, 0, 1, hour, 0, 0);
+            } else {
+                // 传统格式: "2024-01-01T08" 或 "2024-01-01T08:00:00"
+                const str = ts.includes(':') ? ts : ts + ':00:00';
+                return dayjs(str).toDate();
+            }
         };
 
         const extent = d3.extent(timestamps, parseTime);
@@ -191,9 +199,18 @@ const Timeline = (function() {
      */
     function createCurrentTimeIndicator() {
         const g = svg.select('g');
+
         const parseTime = (ts) => {
-            const str = ts.includes(':') ? ts : ts + ':00:00';
-            return dayjs(str).toDate();
+            if (ts.includes('|')) {
+                // 新格式: "2025-11|WEEKDAY|08"
+                const parts = ts.split('|');
+                const hour = parseInt(parts[2], 10) || 0;
+                return new Date(2024, 0, 1, hour, 0, 0);
+            } else {
+                // 传统格式
+                const str = ts.includes(':') ? ts : ts + ':00:00';
+                return dayjs(str).toDate();
+            }
         };
 
         if (timestamps.length > 0 && currentTime) {
@@ -259,8 +276,16 @@ const Timeline = (function() {
         currentTime = timestamp;
 
         const parseTime = (ts) => {
-            const str = ts.includes(':') ? ts : ts + ':00:00';
-            return dayjs(str).toDate();
+            if (ts.includes('|')) {
+                // 新格式: "2025-11|WEEKDAY|08"
+                const parts = ts.split('|');
+                const hour = parseInt(parts[2], 10) || 0;
+                return new Date(2024, 0, 1, hour, 0, 0);
+            } else {
+                // 传统格式
+                const str = ts.includes(':') ? ts : ts + ':00:00';
+                return dayjs(str).toDate();
+            }
         };
 
         const x = xScale(parseTime(timestamp));
@@ -281,8 +306,16 @@ const Timeline = (function() {
         if (!xScale || !brush) return;
 
         const parseTime = (ts) => {
-            const str = ts.includes(':') ? ts : ts + ':00:00';
-            return dayjs(str).toDate();
+            if (ts.includes('|')) {
+                // 新格式: "2025-11|WEEKDAY|08"
+                const parts = ts.split('|');
+                const hour = parseInt(parts[2], 10) || 0;
+                return new Date(2024, 0, 1, hour, 0, 0);
+            } else {
+                // 传统格式
+                const str = ts.includes(':') ? ts : ts + ':00:00';
+                return dayjs(str).toDate();
+            }
         };
 
         const x0 = xScale(parseTime(extent[0]));
@@ -330,8 +363,16 @@ const Timeline = (function() {
         // 移动刷子
         if (brush && xScale) {
             const parseTime = (ts) => {
-                const str = ts.includes(':') ? ts : ts + ':00:00';
-                return dayjs(str).toDate();
+                if (ts.includes('|')) {
+                    // 新格式: "2025-11|WEEKDAY|08"
+                    const parts = ts.split('|');
+                    const hour = parseInt(parts[2], 10) || 0;
+                    return new Date(2024, 0, 1, hour, 0, 0);
+                } else {
+                    // 传统格式
+                    const str = ts.includes(':') ? ts : ts + ':00:00';
+                    return dayjs(str).toDate();
+                }
             };
 
             const x = xScale(parseTime(timestamp));
@@ -359,13 +400,24 @@ const Timeline = (function() {
     function findClosestTimestampIndex(timestamp) {
         if (timestamps.length === 0) return -1;
 
-        const target = dayjs(timestamp);
+        // 解析时间戳获取小时
+        const getHour = (ts) => {
+            if (ts.includes('|')) {
+                const parts = ts.split('|');
+                return parseInt(parts[2], 10) || 0;
+            } else {
+                return dayjs(ts).hour();
+            }
+        };
+
+        const targetHour = getHour(timestamp);
 
         let closestIndex = 0;
         let minDiff = Infinity;
 
         timestamps.forEach((ts, index) => {
-            const diff = Math.abs(dayjs(ts).diff(target, 'hour'));
+            const hour = getHour(ts);
+            const diff = Math.abs(hour - targetHour);
             if (diff < minDiff) {
                 minDiff = diff;
                 closestIndex = index;

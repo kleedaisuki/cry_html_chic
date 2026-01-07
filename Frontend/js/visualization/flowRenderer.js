@@ -15,6 +15,9 @@ const FlowRenderer = (function() {
     // 是否使用客流颜色模式（默认true，关闭时显示静态颜色）
     let useFlowColor = true;
 
+    // 站点客流数据缓存
+    let stationFlowData = null;
+
     /**
      * 初始化渲染器
      */
@@ -26,21 +29,71 @@ const FlowRenderer = (function() {
             LayerManager.init();
         }
 
+        // 加载站点客流数据（用于蒙版插值）
+        loadStationFlowData();
+
         initialized = true;
+    }
+
+    /**
+     * 加载站点客流位置数据
+     */
+    async function loadStationFlowData() {
+        if (window.STATION_FLOW) {
+            stationFlowData = window.STATION_FLOW;
+            console.log('FlowRenderer: station flow data loaded');
+
+            // 初始化 FlowMask
+            if (window.FlowMask) {
+                FlowMask.setData(stationFlowData);
+            }
+            return;
+        }
+
+        // 尝试异步加载
+        try {
+            const data = await helpers.loadJSConstant('station_flow');
+            if (data) {
+                stationFlowData = data;
+                console.log('FlowRenderer: station flow data loaded async');
+
+                if (window.FlowMask) {
+                    FlowMask.setData(stationFlowData);
+                }
+            }
+        } catch (e) {
+            console.warn('FlowRenderer: failed to load station flow data', e);
+        }
+    }
+
+    /**
+     * 设置当前时间戳（用于蒙版插值）
+     * @param {string} timestamp - 时间戳
+     */
+    function setTimestamp(timestamp) {
+        if (window.FlowMask) {
+            FlowMask.setTimestamp(timestamp);
+        }
     }
 
     /**
      * 渲染客流数据
      * @param {Array} flows - 客流数据数组
      * @param {boolean} useFlowColors - 是否使用客流颜色模式（默认true）
+     * @param {string} timestamp - 可选的时间戳（用于蒙版插值）
      */
-    function render(flows, useFlowColors = true) {
+    function render(flows, useFlowColors = true, timestamp = null) {
         if (!initialized) {
             init();
         }
 
         currentData = flows || [];
         useFlowColor = useFlowColors;
+
+        // 更新蒙版时间戳
+        if (timestamp && window.FlowMask) {
+            FlowMask.setTimestamp(timestamp);
+        }
 
         // 更新图层颜色
         if (LayerManager) {
@@ -277,6 +330,7 @@ const FlowRenderer = (function() {
         renderRoute,
         renderBatch,
         animateTo,
+        setTimestamp,
         getCurrentData,
         getRouteFlow,
         getMaxFlowRoute,

@@ -262,3 +262,6 @@ const ColorScale = (function() {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ColorScale;
 }
+
+// 挂载到 window 对象（供其他模块通过 window.ColorScale 访问）
+window.ColorScale = ColorScale;

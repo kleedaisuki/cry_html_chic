@@ -396,9 +396,9 @@
         // 获取客流数据
         const flows = await API.getFlowsAt(timestamp, activeTypes);
 
-        // 渲染到地图（使用客流颜色模式开关）
+        // 渲染到地图（使用客流颜色模式开关，传递时间戳用于蒙版插值）
         if (window.FlowRenderer) {
-            FlowRenderer.render(flows, AppState.flowEnabled);
+            FlowRenderer.render(flows, AppState.flowEnabled, timestamp);
         }
     }
 

@@ -187,7 +187,7 @@ const LayerManager = (function () {
         const infoType = (rs.info?.type || "mrt").toLowerCase();
         const flowType = (rs.flow?.type || infoType || "mrt").toLowerCase();
 
-        // 1) Dynamic flow color
+        // 1) Dynamic flow color (direct route data)
         if (rs.flow && rs.flow.flow !== null && rs.flow.flow !== undefined) {
             if (window.ColorScale && typeof ColorScale.getColor === "function") {
                 const c = ColorScale.getColor(rs.flow.flow, flowType);
@@ -195,17 +195,67 @@ const LayerManager = (function () {
             }
         }
 
-        // 2) Static route color (your data: colour)
+        // 2) Try flow mask interpolation (spatial interpolation from station data)
+        if (window.FlowMask && FlowMask.isReady()) {
+            // Get route center point for mask lookup
+            const center = getRouteCenter(rs);
+            if (center) {
+                const maskFlow = FlowMask.getValueAt(center.lat, center.lon);
+                if (maskFlow !== null && maskFlow !== undefined) {
+                    if (window.ColorScale && typeof ColorScale.getColor === "function") {
+                        const c = ColorScale.getColor(maskFlow, infoType);
+                        if (c) return c;
+                    }
+                }
+            }
+        }
+
+        // 3) Static route color (your data: colour)
         if (rs.info?.colour) return rs.info.colour;
         if (rs.info?.color) return rs.info.color;
 
-        // 3) Optional type defaults
+        // 4) Optional type defaults
         if (infoType === "bus") return "#f39c12";
         if (infoType === "lrt") return "#2ecc71";
         if (infoType === "mrt") return "#3498db";
 
-        // 4) Fallback gray
+        // 5) Fallback gray
         return "#cccccc";
+    }
+
+    /**
+     * @brief 获取线路的中心点 / Get route center point.
+     * @param {RouteState} rs - RouteState.
+     * @return {{lat: number, lon: number}|null} center point.
+     */
+    function getRouteCenter(rs) {
+        if (!rs.layer || !rs.layer.getLayers) return null;
+
+        let minLat = Infinity, maxLat = -Infinity;
+        let minLon = Infinity, maxLon = -Infinity;
+        let hasPoints = false;
+
+        rs.layer.eachLayer(function(layer) {
+            if (layer.getLatLngs) {
+                const latlngs = layer.getLatLngs();
+                for (const ll of latlngs) {
+                    if (ll.lat !== undefined) {
+                        minLat = Math.min(minLat, ll.lat);
+                        maxLat = Math.max(maxLat, ll.lat);
+                        minLon = Math.min(minLon, ll.lng);
+                        maxLon = Math.max(maxLon, ll.lng);
+                        hasPoints = true;
+                    }
+                }
+            }
+        });
+
+        if (!hasPoints) return null;
+
+        return {
+            lat: (minLat + maxLat) / 2,
+            lon: (minLon + maxLon) / 2
+        };
     }
 
     /**

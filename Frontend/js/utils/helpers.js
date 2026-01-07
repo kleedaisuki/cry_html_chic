@@ -39,12 +39,23 @@ const Helpers = (function() {
 
     /**
      * 格式化时间（小时:分钟）
-     * @param {string} timestamp - ISO 时间戳
+     * @param {string} timestamp - ISO 时间戳或复合键格式
      * @returns {string} 格式化的时间字符串
      */
     function formatTime(timestamp) {
         if (!timestamp) return '--:--';
-        // 支持 "2024-01-01T08" 或 "2024-01-01T08:30:00" 格式
+
+        // 新格式: "2025-11|WEEKDAY|08" -> "08:00"
+        if (timestamp.includes('|')) {
+            const parts = timestamp.split('|');
+            if (parts.length >= 3) {
+                const hour = parts[2].padStart(2, '0');
+                return `${hour}:00`;
+            }
+            return timestamp;
+        }
+
+        // 传统格式: "2024-01-01T08" 或 "2024-01-01T08:30:00"
         const match = timestamp.match(/T(\d{2})(?::(\d{2}))?/);
         if (match) {
             const hour = match[1];
@@ -56,12 +67,22 @@ const Helpers = (function() {
 
     /**
      * 格式化完整日期时间
-     * @param {string} timestamp - ISO 时间戳
+     * @param {string} timestamp - ISO 时间戳或复合键格式
      * @returns {string} 格式化的日期时间字符串
      */
     function formatDateTime(timestamp) {
         if (!timestamp) return '-';
-        // 提取日期部分
+
+        // 新格式: "2025-11|WEEKDAY|08" -> "2025-11 WEEKDAY 08:00"
+        if (timestamp.includes('|')) {
+            const parts = timestamp.split('|');
+            const yearMonth = parts[0];
+            const dayType = parts[1];
+            const timePart = formatTime(timestamp);
+            return `${yearMonth} ${dayType} ${timePart}`;
+        }
+
+        // 传统格式
         const datePart = timestamp.split('T')[0];
         const timePart = formatTime(timestamp);
         return `${datePart} ${timePart}`;

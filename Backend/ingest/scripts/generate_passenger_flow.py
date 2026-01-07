@@ -108,21 +108,29 @@ def aggregate_by_route(raw_data):
     return aggregated
 
 
-def generate_hourly_data(aggregated, base_date='2024-01-01'):
+def generate_hourly_data(aggregated):
     """生成每小时数据"""
     hourly_data = {}
 
-    # 获取所有唯一的 (hour, day_type) 组合
-    hour_day_combos = set()
+    # 收集所有唯一的 (year_month, hour, day_type) 组合
+    combos = set()
+    year_months = set()
     for key in aggregated.keys():
         parts = key.split('|')
         if len(parts) == 3:
-            hour_day_combos.add((int(parts[1]), parts[2]))
+            # key 格式: ROUTE_ID|hour|DAY_TYPE
+            hour = int(parts[1])
+            day_type = parts[2]
+            combos.add((hour, day_type))
 
-    for hour, day_type in sorted(hour_day_combos):
-        # 创建时间戳
-        timestamp = f"{base_date}T{hour:02d}:00:00"
+    # 从原始数据中提取 YEAR_MONTH
+    # 默认使用 "2025-11"，后续可从实际数据中提取
+    year_month = "2025-11"
+
+    for hour, day_type in sorted(combos):
         day_type_key = DAY_TYPE_MAP.get(day_type, 'weekday')
+        # 使用复合键格式: YEAR_MONTH|DAY_TYPE|HOUR
+        timestamp_key = f"{year_month}|{day_type}|{hour:02d}"
 
         # 收集该小时所有线路的数据
         route_flows = []
@@ -152,9 +160,11 @@ def generate_hourly_data(aggregated, base_date='2024-01-01'):
         route_flows.sort(key=lambda x: x['flow'], reverse=True)
 
         if route_flows:
-            hourly_data[f"{timestamp}|{day_type_key}"] = {
-                'timestamp': timestamp,
+            hourly_data[timestamp_key] = {
+                'timestamp': timestamp_key,
+                'year_month': year_month,
                 'day_type': day_type_key,
+                'hour': hour,
                 'data': route_flows,
                 'total_flow': total_flow
             }
@@ -170,10 +180,12 @@ def convert_to_frontend_format(hourly_data):
     }
 
     for key, value in sorted(hourly_data.items()):
-        timestamp = value['timestamp']
-        result['data'][timestamp] = {
-            'timestamp': timestamp,
+        # 直接使用复合键作为时间戳
+        result['data'][key] = {
+            'timestamp': key,
+            'year_month': value['year_month'],
             'day_type': value['day_type'],
+            'hour': value['hour'],
             'data': value['data'],
             'total_flow': value['total_flow']
         }
