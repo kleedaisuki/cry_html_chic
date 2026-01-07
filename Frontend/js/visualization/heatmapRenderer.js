@@ -280,3 +280,6 @@ const HeatmapRenderer = (function() {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = HeatmapRenderer;
 }
+
+// 挂载到 window 对象（供其他模块通过 window.HeatmapRenderer 访问）
+window.HeatmapRenderer = HeatmapRenderer;
