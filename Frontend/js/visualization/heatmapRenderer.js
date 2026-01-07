@@ -268,10 +268,23 @@ const HeatmapRenderer = (function () {
 
             map.getPanes().overlayPane.appendChild(this._container);
 
-            map.on('moveend', this._scheduleDraw, this);
+            // 从 moveend -> move（拖动过程中持续重绘，但由 rAF 合帧）
+            map.on('move', this._scheduleDraw, this);
+
+            // zoom 相关：zoom(连续) + zoomend(结束兜底)
+            // 如果 zoom 过程中重绘太频繁，可以只保留 zoomend
+            map.on('zoom', this._scheduleDraw, this);
             map.on('zoomend', this._scheduleDraw, this);
+
             map.on('resize', this._scheduleDraw, this);
 
+            // 缩放动画更丝滑：如果 Leaflet 开了动画
+            map.on('zoomanim', this._scheduleDraw, this);
+
+            // 增加 CSS 防御
+            L.DomUtil.addClass(this._container, 'leaflet-layer');
+
+            this._scheduleDraw();
             this._scheduleDraw();
         },
 
@@ -283,9 +296,11 @@ const HeatmapRenderer = (function () {
 
             map.getPanes().overlayPane.removeChild(this._container);
 
-            map.off('moveend', this._scheduleDraw, this);
+            map.off('move', this._scheduleDraw, this);
+            map.off('zoom', this._scheduleDraw, this);
             map.off('zoomend', this._scheduleDraw, this);
             map.off('resize', this._scheduleDraw, this);
+            map.off('zoomanim', this._scheduleDraw, this);
 
             this._map = null;
             this._container = null;
@@ -376,7 +391,7 @@ const HeatmapRenderer = (function () {
                 const t = clamp(v / maxValue, 0, 1);
                 const intensity = Math.pow(t, CONFIG.gamma);
 
-                const pt = map.latLngToContainerPoint([lat, lon]); // CSS px
+                const pt = map.latLngToLayerPoint([lat, lon]);    // layer px（与 overlayPane 同坐标系）
                 const x = pt.x * pixelRatio;                      // device px
                 const y = pt.y * pixelRatio;
 
