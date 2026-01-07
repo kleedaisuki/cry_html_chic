@@ -282,25 +282,40 @@ const Helpers = (function() {
      * @returns {Promise} Promise 对象
      */
     async function loadJSConstant(url) {
-        // 动态加载脚本
-        await loadScript(url);
-        // 尝试从 window 对象获取数据
-        const match = url.match(/([^\/]+)\.js$/);
-        if (match) {
-            const varName = match[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-            // 尝试从各种可能的变量名获取数据
-            const possibleNames = [
-                varName,
-                varName.replace(/([A-Z])/g, '_$1').toUpperCase(),
-                'DATA'
-            ];
-            for (const name of possibleNames) {
-                if (window[name]) {
-                    return window[name];
+        try {
+            // 使用 fetch 替代动态 script 标签加载（兼容 file:// 协议）
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Failed to load ${url}: ${response.status}`);
+            }
+            const text = await response.text();
+            // 执行脚本内容
+            eval(text);
+            // 提取变量名
+            const match = url.match(/([^\/]+)\.js$/);
+            if (match) {
+                const varName = match[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+                // 尝试从各种可能的变量名获取数据
+                const possibleNames = [
+                    varName,
+                    varName.replace(/([A-Z])/g, '_$1').toUpperCase(),
+                    'POPULATION_HEATMAP',
+                    'PASSENGER_FLOW',
+                    'DATA'
+                ];
+                for (const name of possibleNames) {
+                    if (window[name] !== undefined) {
+                        console.log(`loadJSConstant: found ${name} in window`);
+                        return window[name];
+                    }
                 }
             }
+            console.warn('loadJSConstant: data not found in window for', url);
+            return null;
+        } catch (error) {
+            console.error('loadJSConstant error:', error);
+            throw error;
         }
-        return null;
     }
 
     /**

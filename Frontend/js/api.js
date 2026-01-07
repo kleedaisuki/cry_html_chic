@@ -63,17 +63,22 @@ const API = (function() {
         try {
             // 尝试加载 passenger_flow.js
             const data = await Helpers.loadJSConstant(`${CONFIG.data.basePath}/passenger_flow.js`);
-            cache.passengerFlow = data;
-            return data;
+            if (data && data.data) {
+                cache.passengerFlow = data;
+                console.log('Passenger flow loaded:', Object.keys(data.data).length, 'timestamps');
+                return data;
+            } else {
+                console.warn('passenger_flow.js loaded but data not found or empty');
+            }
         } catch (error) {
-            console.warn('Could not load passenger_flow.js:', error);
-            // 返回空数据对象，避免后续崩溃
-            cache.passengerFlow = {
-                ir_kind: 'passenger_flow',
-                data: {}
-            };
-            return cache.passengerFlow;
+            console.error('Failed to load passenger_flow.js:', error);
         }
+        // 返回空数据对象，避免后续崩溃
+        cache.passengerFlow = {
+            ir_kind: 'passenger_flow',
+            data: {}
+        };
+        return cache.passengerFlow;
     }
 
     /**
@@ -143,17 +148,28 @@ const API = (function() {
         }
 
         try {
-            const data = await Helpers.loadJSConstant(`${CONFIG.data.basePath}/population_heatmap.js`);
-            cache.populationHeatmap = data;
-            return data;
+            const url = `${CONFIG.data.basePath}/population_heatmap.js`;
+            console.log('loadPopulationHeatmap: loading', url);
+            const data = await Helpers.loadJSConstant(url);
+            console.log('loadPopulationHeatmap: data =', typeof data, data);
+            console.log('loadPopulationHeatmap: window.POPULATION_HEATMAP =', typeof window.POPULATION_HEATMAP, window.POPULATION_HEATMAP);
+
+            if (data && data.data && data.data.points) {
+                cache.populationHeatmap = data;
+                console.log('Population heatmap loaded:', data.data.points.length, 'points');
+                return data;
+            } else {
+                console.warn('population_heatmap.js condition failed: data=', !!data, 'data.data=', !!data?.data, 'data.data.points=', data?.data?.points);
+            }
         } catch (error) {
-            console.warn('Could not load population_heatmap.js:', error);
-            cache.populationHeatmap = {
-                ir_kind: 'population_heatmap',
-                data: { points: [], stats: { count: 0, min: 0, max: 0, sum: 0 } }
-            };
-            return cache.populationHeatmap;
+            console.error('Failed to load population_heatmap.js:', error);
         }
+        // 返回空数据
+        cache.populationHeatmap = {
+            ir_kind: 'population_heatmap',
+            data: { points: [], stats: { count: 0, min: 0, max: 0, sum: 0 } }
+        };
+        return cache.populationHeatmap;
     }
 
     /**
@@ -161,7 +177,9 @@ const API = (function() {
      * @returns {Array} 热力图数据点数组
      */
     async function getPopulationHeatmapPoints() {
+        console.log('getPopulationHeatmapPoints called');
         const data = await loadPopulationHeatmap();
+        console.log('getPopulationHeatmapPoints: data loaded', !!data, 'points:', data?.data?.points?.length);
         if (data && data.data && data.data.points) {
             return data.data.points;
         }
