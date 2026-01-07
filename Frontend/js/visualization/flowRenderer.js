@@ -12,6 +12,9 @@ const FlowRenderer = (function() {
     // 是否已初始化
     let initialized = false;
 
+    // 是否使用客流颜色模式（默认true，关闭时显示静态颜色）
+    let useFlowColor = true;
+
     /**
      * 初始化渲染器
      */
@@ -29,17 +32,19 @@ const FlowRenderer = (function() {
     /**
      * 渲染客流数据
      * @param {Array} flows - 客流数据数组
+     * @param {boolean} useFlowColors - 是否使用客流颜色模式（默认true）
      */
-    function render(flows) {
+    function render(flows, useFlowColors = true) {
         if (!initialized) {
             init();
         }
 
         currentData = flows || [];
+        useFlowColor = useFlowColors;
 
         // 更新图层颜色
         if (LayerManager) {
-            LayerManager.updateRouteColors(flows);
+            LayerManager.updateRouteColors(flows, useFlowColors);
         }
     }
 

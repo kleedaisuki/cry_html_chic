@@ -15,7 +15,9 @@
             lrt: true,
             bus: true
         },
-        selectedRoute: null
+        selectedRoute: null,
+        heatmapEnabled: true,      // 人口热力图开关
+        flowEnabled: true          // 线路客流量开关
     };
 
     /**
@@ -55,6 +57,9 @@
 
         // 加载公交站点数据
         await initBusStops();
+
+        // 初始化人口热力图层
+        await initPopulationHeatmap();
 
         console.log('Application initialized successfully.');
     }
@@ -105,6 +110,9 @@
         // 图层控制
         initLayerControls();
 
+        // 热力图和客流控制
+        initVisualizationControls();
+
         // 时间轴控制
         initTimelineControls();
     }
@@ -139,6 +147,40 @@
                     }
                 });
             }
+        }
+    }
+
+    /**
+     * 初始化可视化控制（热力图和客流开关）
+     */
+    function initVisualizationControls() {
+        // 热力图开关
+        const heatmapToggle = Helpers.$('#toggle-heatmap');
+        if (heatmapToggle) {
+            heatmapToggle.checked = AppState.heatmapEnabled;
+
+            Helpers.on(heatmapToggle, 'change', function() {
+                AppState.heatmapEnabled = this.checked;
+
+                if (window.HeatmapRenderer) {
+                    HeatmapRenderer.setEnabled(this.checked);
+                }
+            });
+        }
+
+        // 客流开关
+        const flowToggle = Helpers.$('#toggle-flow');
+        if (flowToggle) {
+            flowToggle.checked = AppState.flowEnabled;
+
+            Helpers.on(flowToggle, 'change', function() {
+                AppState.flowEnabled = this.checked;
+
+                // 重新渲染客流数据
+                if (AppState.currentTimestamp) {
+                    renderFlowData(AppState.currentTimestamp);
+                }
+            });
         }
     }
 
@@ -281,6 +323,27 @@
     }
 
     /**
+     * 初始化人口热力图层
+     */
+    async function initPopulationHeatmap() {
+        try {
+            if (window.HeatmapRenderer) {
+                HeatmapRenderer.init();
+
+                const heatmapPoints = await API.getPopulationHeatmapPoints();
+                if (heatmapPoints && heatmapPoints.length > 0) {
+                    HeatmapRenderer.render(heatmapPoints);
+                    console.log(`Population heatmap initialized with ${heatmapPoints.length} points`);
+                } else {
+                    console.warn('No population heatmap data available');
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to initialize population heatmap:', error);
+        }
+    }
+
+    /**
      * 初始化时间轴
      * @param {string[]} timestamps - 时间戳列表
      */
@@ -333,9 +396,9 @@
         // 获取客流数据
         const flows = await API.getFlowsAt(timestamp, activeTypes);
 
-        // 渲染到地图
+        // 渲染到地图（使用客流颜色模式开关）
         if (window.FlowRenderer) {
-            FlowRenderer.render(flows);
+            FlowRenderer.render(flows, AppState.flowEnabled);
         }
     }
 
